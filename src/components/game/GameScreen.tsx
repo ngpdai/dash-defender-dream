@@ -1,0 +1,276 @@
+import { useEffect, useCallback, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import { Heart, Shield, Gauge } from 'lucide-react';
+import { GameState, Ship, Obstacle } from '@/types/game';
+
+interface GameScreenProps {
+  gameState: GameState;
+  shipData: Ship | null;
+  onMove: (direction: 'up' | 'down' | 'left' | 'right') => void;
+  onStart: () => void;
+}
+
+const ObstacleComponent = ({ obstacle }: { obstacle: Obstacle }) => {
+  const getObstacleEmoji = () => {
+    switch (obstacle.type) {
+      case 'asteroid':
+        return '☄️';
+      case 'debris':
+        return '🪨';
+      case 'mine':
+        return '💥';
+      default:
+        return '🌑';
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ x: '100vw', opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      className="absolute text-3xl"
+      style={{
+        left: `${obstacle.x}%`,
+        top: `${obstacle.y}%`,
+        transform: 'translate(-50%, -50%)',
+      }}
+    >
+      {getObstacleEmoji()}
+    </motion.div>
+  );
+};
+
+const GameScreen = ({ gameState, shipData, onMove, onStart }: GameScreenProps) => {
+  const gameAreaRef = useRef<HTMLDivElement>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [showStartPrompt, setShowStartPrompt] = useState(true);
+
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!gameState.isPlaying) {
+        if (e.key === ' ' || e.key === 'Enter') {
+          onStart();
+          setShowStartPrompt(false);
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case 'ArrowUp':
+        case 'w':
+        case 'W':
+          onMove('up');
+          break;
+        case 'ArrowDown':
+        case 's':
+        case 'S':
+          onMove('down');
+          break;
+        case 'ArrowLeft':
+        case 'a':
+        case 'A':
+          onMove('left');
+          break;
+        case 'ArrowRight':
+        case 'd':
+        case 'D':
+          onMove('right');
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameState.isPlaying, onMove, onStart]);
+
+  // Touch controls
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (!touchStartRef.current) return;
+
+      const touch = e.changedTouches[0];
+      const deltaX = touch.clientX - touchStartRef.current.x;
+      const deltaY = touch.clientY - touchStartRef.current.y;
+
+      if (!gameState.isPlaying) {
+        onStart();
+        setShowStartPrompt(false);
+        touchStartRef.current = null;
+        return;
+      }
+
+      const minSwipe = 30;
+
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (deltaX > minSwipe) onMove('right');
+        else if (deltaX < -minSwipe) onMove('left');
+      } else {
+        if (deltaY > minSwipe) onMove('down');
+        else if (deltaY < -minSwipe) onMove('up');
+      }
+
+      touchStartRef.current = null;
+    },
+    [gameState.isPlaying, onMove, onStart]
+  );
+
+  return (
+    <div className="flex flex-col h-screen relative z-10">
+      {/* HUD */}
+      <div className="flex justify-between items-center p-4 bg-space-dark/80 border-b border-primary/30">
+        {/* Score */}
+        <div className="flex items-center gap-4">
+          <div className="font-orbitron text-2xl md:text-3xl font-bold text-primary text-glow-cyan">
+            {gameState.score.toLocaleString()}
+            <span className="text-sm text-muted-foreground ml-2">KM</span>
+          </div>
+        </div>
+
+        {/* Status */}
+        <div className="flex items-center gap-4">
+          {/* Shield */}
+          {gameState.hasShield && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center gap-1 px-3 py-1 bg-primary/20 rounded-full border border-primary/50"
+            >
+              <Shield className="w-4 h-4 text-primary" />
+              <span className="font-rajdhani text-sm text-primary">SHIELD</span>
+            </motion.div>
+          )}
+
+          {/* Lives */}
+          <div className="flex items-center gap-1">
+            {[...Array(gameState.lives)].map((_, i) => (
+              <Heart
+                key={i}
+                className="w-5 h-5 text-secondary fill-secondary"
+              />
+            ))}
+          </div>
+
+          {/* Difficulty */}
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Gauge className="w-4 h-4" />
+            <span className="font-rajdhani text-sm">
+              {gameState.difficulty.toFixed(1)}x
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Game Area */}
+      <div
+        ref={gameAreaRef}
+        className="flex-1 relative overflow-hidden bg-gradient-to-r from-space-dark via-space-medium to-space-dark"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Grid lines */}
+        <div className="absolute inset-0 opacity-10">
+          {[...Array(10)].map((_, i) => (
+            <div
+              key={`h-${i}`}
+              className="absolute w-full h-px bg-primary"
+              style={{ top: `${(i + 1) * 10}%` }}
+            />
+          ))}
+          {[...Array(20)].map((_, i) => (
+            <motion.div
+              key={`v-${i}`}
+              initial={{ x: '100%' }}
+              animate={{ x: '-100%' }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: 'linear',
+                delay: i * 0.1,
+              }}
+              className="absolute h-full w-px bg-primary/50"
+              style={{ left: `${(i + 1) * 5}%` }}
+            />
+          ))}
+        </div>
+
+        {/* Player Ship */}
+        <motion.div
+          animate={{
+            left: `${gameState.playerPosition.x}%`,
+            top: `${gameState.playerPosition.y}%`,
+          }}
+          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          className="absolute transform -translate-x-1/2 -translate-y-1/2"
+          style={{ zIndex: 10 }}
+        >
+          <div className="relative">
+            {/* Shield effect */}
+            {gameState.hasShield && (
+              <motion.div
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="absolute inset-0 -m-4 rounded-full border-2 border-primary bg-primary/10"
+              />
+            )}
+            {/* Ship */}
+            <motion.div
+              animate={{ y: [0, -3, 0] }}
+              transition={{ duration: 0.5, repeat: Infinity }}
+              className="text-4xl md:text-5xl"
+            >
+              {shipData?.id === 'speeder' ? '🚀' : '🛸'}
+            </motion.div>
+            {/* Engine glow */}
+            <div
+              className={`absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-2 rounded-full blur-sm ${
+                shipData?.color === 'cyan' ? 'bg-primary' : 'bg-secondary'
+              }`}
+            />
+          </div>
+        </motion.div>
+
+        {/* Obstacles */}
+        {gameState.obstacles.map(obstacle => (
+          <ObstacleComponent key={obstacle.id} obstacle={obstacle} />
+        ))}
+
+        {/* Start Prompt */}
+        {showStartPrompt && !gameState.isPlaying && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="absolute inset-0 flex items-center justify-center bg-space-dark/50"
+          >
+            <div className="text-center">
+              <motion.p
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="font-orbitron text-xl text-primary text-glow-cyan"
+              >
+                PRESS SPACE OR TAP TO START
+              </motion.p>
+              <p className="font-rajdhani text-muted-foreground mt-2">
+                Avoid obstacles. Reach 0 KM to win!
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Mobile Controls Hint */}
+      <div className="p-2 bg-space-dark/80 border-t border-primary/30 text-center md:hidden">
+        <p className="font-rajdhani text-xs text-muted-foreground">
+          Swipe to move
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default GameScreen;
