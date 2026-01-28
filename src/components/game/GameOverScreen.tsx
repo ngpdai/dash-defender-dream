@@ -98,11 +98,11 @@ const GameOverScreen = ({
           </p>
         </div>
 
-        {/* High Score */}
+        {/* Best Score (lowest = traveled farthest) */}
         <div className="flex items-center justify-center gap-2">
           <Trophy className="w-5 h-5 text-secondary" />
           <span className="font-rajdhani text-lg text-muted-foreground">
-            Best: <span className="text-secondary font-bold">{highScore.toLocaleString()} KM</span>
+            Best Distance: <span className="text-secondary font-bold">{highScore.toLocaleString()} KM remaining</span>
           </span>
         </div>
       </motion.div>
