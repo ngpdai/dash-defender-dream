@@ -1,5 +1,7 @@
+import { useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
+import { useSoundEffects } from '@/hooks/useSoundEffects';
 import StarField from './StarField';
 import MenuScreen from './MenuScreen';
 import ShipSelectScreen from './ShipSelectScreen';
@@ -18,7 +20,56 @@ const Game = () => {
     goToMenu,
     goToShipSelect,
     restartGame,
+    setSoundCallbacks,
   } = useGameState();
+
+  const {
+    playMoveSound,
+    playCollisionSound,
+    playShieldBreakSound,
+    playStormSound,
+    playExplosionSound,
+    playIncomingSound,
+    playStartSound,
+    playGameOverSound,
+    playVictorySound,
+  } = useSoundEffects();
+
+  // Set up sound callbacks
+  useEffect(() => {
+    setSoundCallbacks({
+      onShieldBreak: playShieldBreakSound,
+      onCollision: playCollisionSound,
+      onExplosion: playExplosionSound,
+      onStorm: playStormSound,
+      onIncoming: playIncomingSound,
+    });
+  }, [setSoundCallbacks, playShieldBreakSound, playCollisionSound, playExplosionSound, playStormSound, playIncomingSound]);
+
+  const handleStart = () => {
+    playStartSound();
+    startGame();
+  };
+
+  const handleRestart = () => {
+    playStartSound();
+    restartGame();
+  };
+
+  const handleGameOver = () => {
+    if (gameState.score <= 0) {
+      playVictorySound();
+    } else {
+      playGameOverSound();
+    }
+  };
+
+  // Play game over sound when screen changes to game-over
+  useEffect(() => {
+    if (screen === 'game-over') {
+      handleGameOver();
+    }
+  }, [screen]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -48,7 +99,8 @@ const Game = () => {
             gameState={gameState}
             shipData={selectedShipData}
             onMove={movePlayer}
-            onStart={startGame}
+            onStart={handleStart}
+            onMoveSound={playMoveSound}
           />
         )}
 
@@ -59,7 +111,7 @@ const Game = () => {
             highScore={gameState.highScore}
             isNewHighScore={gameState.score === gameState.highScore && gameState.score > 0}
             won={gameState.score <= 0}
-            onRestart={restartGame}
+            onRestart={handleRestart}
             onMenu={goToMenu}
           />
         )}

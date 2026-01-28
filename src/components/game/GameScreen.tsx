@@ -1,13 +1,14 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Heart, Shield, Gauge } from 'lucide-react';
-import { GameState, Ship, Obstacle } from '@/types/game';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Heart, Shield, Gauge, AlertTriangle } from 'lucide-react';
+import { GameState, Ship, Obstacle, SuddenEntity } from '@/types/game';
 
 interface GameScreenProps {
   gameState: GameState;
   shipData: Ship | null;
   onMove: (direction: 'up' | 'down' | 'left' | 'right') => void;
   onStart: () => void;
+  onMoveSound?: () => void;
 }
 
 const ObstacleComponent = ({ obstacle }: { obstacle: Obstacle }) => {
@@ -40,7 +41,94 @@ const ObstacleComponent = ({ obstacle }: { obstacle: Obstacle }) => {
   );
 };
 
-const GameScreen = ({ gameState, shipData, onMove, onStart }: GameScreenProps) => {
+const SuddenEntityComponent = ({ entity }: { entity: SuddenEntity }) => {
+  const timeSinceSpawn = Date.now() - entity.spawnTime;
+  const isWarning = timeSinceSpawn > 2000; // Flash warning in last second
+
+  return (
+    <motion.div
+      initial={{ x: '-10%', scale: 0.5, opacity: 0 }}
+      animate={{ 
+        x: 0, 
+        scale: entity.isExploding ? [1, 2, 0] : 1, 
+        opacity: entity.isExploding ? [1, 1, 0] : 1,
+        rotate: entity.isExploding ? [0, 180, 360] : 0,
+      }}
+      transition={{ 
+        duration: entity.isExploding ? 0.3 : 0.2,
+      }}
+      className={`absolute text-3xl ${isWarning && !entity.isExploding ? 'animate-pulse' : ''}`}
+      style={{
+        left: `${entity.x}%`,
+        top: `${entity.y}%`,
+        transform: 'translate(-50%, -50%)',
+        filter: isWarning && !entity.isExploding ? 'drop-shadow(0 0 10px #ff0000)' : 'none',
+      }}
+    >
+      {entity.isExploding ? '💥' : '🛸'}
+    </motion.div>
+  );
+};
+
+const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
+  if (!storm.active) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="absolute inset-0 pointer-events-none z-20"
+    >
+      {/* Warping space effect */}
+      <div 
+        className="absolute inset-0 animate-storm-warp"
+        style={{
+          background: `
+            radial-gradient(ellipse at 20% 30%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 70%, rgba(236, 72, 153, 0.3) 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.2) 0%, transparent 60%)
+          `,
+        }}
+      />
+      
+      {/* Scanlines */}
+      <div 
+        className="absolute inset-0 opacity-30"
+        style={{
+          backgroundImage: `repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0, 255, 255, 0.1) 2px,
+            rgba(0, 255, 255, 0.1) 4px
+          )`,
+          animation: 'scanlines 0.1s linear infinite',
+        }}
+      />
+
+      {/* Chromatic aberration simulation */}
+      <div 
+        className="absolute inset-0 mix-blend-screen animate-glitch"
+        style={{
+          background: 'linear-gradient(90deg, rgba(255,0,0,0.1) 0%, transparent 33%, transparent 66%, rgba(0,0,255,0.1) 100%)',
+        }}
+      />
+
+      {/* Warning indicator */}
+      <motion.div
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="absolute top-20 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 bg-destructive/80 rounded-lg border border-destructive"
+      >
+        <AlertTriangle className="w-5 h-5 text-destructive-foreground animate-pulse" />
+        <span className="font-orbitron text-sm text-destructive-foreground">TERRA STORM</span>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameScreenProps) => {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showStartPrompt, setShowStartPrompt] = useState(true);
@@ -56,33 +144,41 @@ const GameScreen = ({ gameState, shipData, onMove, onStart }: GameScreenProps) =
         return;
       }
 
+      let moved = false;
       switch (e.key) {
         case 'ArrowUp':
         case 'w':
         case 'W':
           onMove('up');
+          moved = true;
           break;
         case 'ArrowDown':
         case 's':
         case 'S':
           onMove('down');
+          moved = true;
           break;
         case 'ArrowLeft':
         case 'a':
         case 'A':
           onMove('left');
+          moved = true;
           break;
         case 'ArrowRight':
         case 'd':
         case 'D':
           onMove('right');
+          moved = true;
           break;
+      }
+      if (moved && onMoveSound) {
+        onMoveSound();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState.isPlaying, onMove, onStart]);
+  }, [gameState.isPlaying, onMove, onStart, onMoveSound]);
 
   // Touch controls
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -106,22 +202,39 @@ const GameScreen = ({ gameState, shipData, onMove, onStart }: GameScreenProps) =
       }
 
       const minSwipe = 30;
+      let moved = false;
 
       if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        if (deltaX > minSwipe) onMove('right');
-        else if (deltaX < -minSwipe) onMove('left');
+        if (deltaX > minSwipe) {
+          onMove('right');
+          moved = true;
+        } else if (deltaX < -minSwipe) {
+          onMove('left');
+          moved = true;
+        }
       } else {
-        if (deltaY > minSwipe) onMove('down');
-        else if (deltaY < -minSwipe) onMove('up');
+        if (deltaY > minSwipe) {
+          onMove('down');
+          moved = true;
+        } else if (deltaY < -minSwipe) {
+          onMove('up');
+          moved = true;
+        }
+      }
+
+      if (moved && onMoveSound) {
+        onMoveSound();
       }
 
       touchStartRef.current = null;
     },
-    [gameState.isPlaying, onMove, onStart]
+    [gameState.isPlaying, onMove, onStart, onMoveSound]
   );
 
   return (
-    <div className="flex flex-col h-screen relative z-10">
+    <div 
+      className={`flex flex-col h-screen relative z-10 ${gameState.terraStorm.active ? 'animate-shake' : ''}`}
+    >
       {/* HUD */}
       <div className="flex justify-between items-center p-4 bg-space-dark/80 border-b border-primary/30">
         {/* Score */}
@@ -173,6 +286,13 @@ const GameScreen = ({ gameState, shipData, onMove, onStart }: GameScreenProps) =
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
+        {/* Terra Storm Overlay */}
+        <AnimatePresence>
+          {gameState.terraStorm.active && (
+            <TerraStormOverlay storm={gameState.terraStorm} />
+          )}
+        </AnimatePresence>
+
         {/* Grid lines */}
         <div className="absolute inset-0 opacity-10">
           {[...Array(10)].map((_, i) => (
@@ -238,6 +358,11 @@ const GameScreen = ({ gameState, shipData, onMove, onStart }: GameScreenProps) =
         {/* Obstacles */}
         {gameState.obstacles.map(obstacle => (
           <ObstacleComponent key={obstacle.id} obstacle={obstacle} />
+        ))}
+
+        {/* Sudden Entities */}
+        {gameState.suddenEntities.map(entity => (
+          <SuddenEntityComponent key={entity.id} entity={entity} />
         ))}
 
         {/* Start Prompt */}

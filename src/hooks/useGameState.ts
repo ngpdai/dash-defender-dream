@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, ShipType, Obstacle, GameScreen, Ship } from '@/types/game';
+import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm } from '@/types/game';
 
 const SHIPS: Record<ShipType, Ship> = {
   speeder: {
@@ -23,8 +23,6 @@ const SHIPS: Record<ShipType, Ship> = {
 };
 
 const INITIAL_SCORE = 2500;
-const LANES = 3;
-const LANE_HEIGHT = 33.33;
 
 const getHighScore = (): number => {
   const saved = localStorage.getItem('2500km-highscore');
@@ -33,6 +31,13 @@ const getHighScore = (): number => {
 
 const saveHighScore = (score: number): void => {
   localStorage.setItem('2500km-highscore', score.toString());
+};
+
+const INITIAL_TERRA_STORM: TerraStorm = {
+  active: false,
+  startTime: 0,
+  duration: 5000,
+  intensity: 0,
 };
 
 export const useGameState = () => {
@@ -47,6 +52,8 @@ export const useGameState = () => {
     selectedShip: null,
     playerPosition: { x: 10, y: 50 },
     obstacles: [],
+    suddenEntities: [],
+    terraStorm: INITIAL_TERRA_STORM,
     lives: 1,
     hasShield: false,
     difficulty: 1,
@@ -55,9 +62,32 @@ export const useGameState = () => {
 
   const gameLoopRef = useRef<number | null>(null);
   const obstacleSpawnRef = useRef<number | null>(null);
+  const stormTimerRef = useRef<number | null>(null);
+  const entitySpawnRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
 
+  // Callbacks for sound effects (set by Game component)
+  const onShieldBreakRef = useRef<() => void>(() => {});
+  const onCollisionRef = useRef<() => void>(() => {});
+  const onExplosionRef = useRef<() => void>(() => {});
+  const onStormRef = useRef<() => void>(() => {});
+  const onIncomingRef = useRef<() => void>(() => {});
+
   const selectedShipData = gameState.selectedShip ? SHIPS[gameState.selectedShip] : null;
+
+  const setSoundCallbacks = useCallback((callbacks: {
+    onShieldBreak?: () => void;
+    onCollision?: () => void;
+    onExplosion?: () => void;
+    onStorm?: () => void;
+    onIncoming?: () => void;
+  }) => {
+    if (callbacks.onShieldBreak) onShieldBreakRef.current = callbacks.onShieldBreak;
+    if (callbacks.onCollision) onCollisionRef.current = callbacks.onCollision;
+    if (callbacks.onExplosion) onExplosionRef.current = callbacks.onExplosion;
+    if (callbacks.onStorm) onStormRef.current = callbacks.onStorm;
+    if (callbacks.onIncoming) onIncomingRef.current = callbacks.onIncoming;
+  }, []);
 
   const selectShip = useCallback((shipType: ShipType) => {
     const ship = SHIPS[shipType];
@@ -83,6 +113,8 @@ export const useGameState = () => {
       distance: 0,
       playerPosition: { x: 10, y: 50 },
       obstacles: [],
+      suddenEntities: [],
+      terraStorm: INITIAL_TERRA_STORM,
       lives: ship.lives,
       hasShield: ship.shield,
       difficulty: 1,
@@ -141,6 +173,50 @@ export const useGameState = () => {
     }));
   }, []);
 
+  const spawnSuddenEntity = useCallback(() => {
+    onIncomingRef.current();
+    
+    const entity: SuddenEntity = {
+      id: `entity-${Date.now()}-${Math.random()}`,
+      x: -10,
+      y: Math.random() * 60 + 20,
+      spawnTime: Date.now(),
+      isExploding: false,
+    };
+
+    setGameState(prev => ({
+      ...prev,
+      suddenEntities: [...prev.suddenEntities, entity],
+    }));
+  }, []);
+
+  const triggerTerraStorm = useCallback(() => {
+    onStormRef.current();
+    
+    // Vibrate device if supported
+    if (navigator.vibrate) {
+      navigator.vibrate([100, 50, 100, 50, 200, 100, 300]);
+    }
+
+    setGameState(prev => ({
+      ...prev,
+      terraStorm: {
+        active: true,
+        startTime: Date.now(),
+        duration: 5000,
+        intensity: 0.5 + Math.random() * 0.5,
+      },
+    }));
+
+    // End storm after duration
+    setTimeout(() => {
+      setGameState(prev => ({
+        ...prev,
+        terraStorm: { ...prev.terraStorm, active: false },
+      }));
+    }, 5000);
+  }, []);
+
   const checkCollision = useCallback((playerPos: { x: number; y: number }, obstacle: Obstacle): boolean => {
     const playerWidth = 8;
     const playerHeight = 6;
@@ -158,6 +234,24 @@ export const useGameState = () => {
     return !(playerRight < obsLeft || playerLeft > obsRight || playerBottom < obsTop || playerTop > obsBottom);
   }, []);
 
+  const checkEntityCollision = useCallback((playerPos: { x: number; y: number }, entity: SuddenEntity): boolean => {
+    const playerWidth = 8;
+    const playerHeight = 6;
+    const entitySize = 10;
+    
+    const playerLeft = playerPos.x;
+    const playerRight = playerPos.x + playerWidth;
+    const playerTop = playerPos.y - playerHeight / 2;
+    const playerBottom = playerPos.y + playerHeight / 2;
+
+    const entityLeft = entity.x;
+    const entityRight = entity.x + entitySize;
+    const entityTop = entity.y - entitySize / 2;
+    const entityBottom = entity.y + entitySize / 2;
+
+    return !(playerRight < entityLeft || playerLeft > entityRight || playerBottom < entityTop || playerTop > entityBottom);
+  }, []);
+
   const endGame = useCallback(() => {
     setGameState(prev => {
       const newHighScore = prev.score > prev.highScore ? prev.score : prev.highScore;
@@ -172,21 +266,6 @@ export const useGameState = () => {
       };
     });
     setScreen('game-over');
-  }, []);
-
-  const handleCollision = useCallback(() => {
-    setGameState(prev => {
-      if (prev.hasShield) {
-        return { ...prev, hasShield: false };
-      }
-      
-      const newLives = prev.lives - 1;
-      if (newLives <= 0) {
-        return prev;
-      }
-      
-      return { ...prev, lives: newLives };
-    });
   }, []);
 
   // Game loop
@@ -210,7 +289,28 @@ export const useGameState = () => {
           .map(obs => ({ ...obs, x: obs.x - speed * deltaTime }))
           .filter(obs => obs.x > -20);
 
-        // Check collisions
+        // Move sudden entities (faster, from behind)
+        const entitySpeed = 0.08;
+        const now = Date.now();
+        let updatedEntities = prev.suddenEntities
+          .map(entity => {
+            const timeSinceSpawn = now - entity.spawnTime;
+            const shouldExplode = timeSinceSpawn >= 3000;
+            return {
+              ...entity,
+              x: entity.x + entitySpeed * deltaTime,
+              isExploding: shouldExplode || entity.isExploding,
+            };
+          })
+          .filter(entity => {
+            if (entity.isExploding && entity.x > -5) {
+              onExplosionRef.current();
+              return false;
+            }
+            return entity.x < 110;
+          });
+
+        // Check obstacle collisions
         let hitObstacle = false;
         for (const obs of updatedObstacles) {
           if (checkCollision(prev.playerPosition, obs)) {
@@ -219,13 +319,35 @@ export const useGameState = () => {
           }
         }
 
-        if (hitObstacle) {
+        // Check entity collisions
+        let hitEntity = false;
+        updatedEntities = updatedEntities.filter(entity => {
+          if (!entity.isExploding && checkEntityCollision(prev.playerPosition, entity)) {
+            hitEntity = true;
+            onExplosionRef.current();
+            return false;
+          }
+          return true;
+        });
+
+        if (hitObstacle || hitEntity) {
           if (prev.hasShield) {
-            return { ...prev, obstacles: updatedObstacles, hasShield: false };
+            onShieldBreakRef.current();
+            return { 
+              ...prev, 
+              obstacles: updatedObstacles, 
+              suddenEntities: updatedEntities,
+              hasShield: false 
+            };
           } else if (prev.lives > 1) {
-            return { ...prev, obstacles: updatedObstacles, lives: prev.lives - 1 };
+            onCollisionRef.current();
+            return { 
+              ...prev, 
+              obstacles: updatedObstacles, 
+              suddenEntities: updatedEntities,
+              lives: prev.lives - 1 
+            };
           } else {
-            // Game over will be handled separately
             return prev;
           }
         }
@@ -238,7 +360,6 @@ export const useGameState = () => {
         // Increase difficulty
         const newDifficulty = 1 + Math.floor(newGameTime / 30) * 0.1;
 
-        // Check win condition
         if (newScore <= 0) {
           return prev;
         }
@@ -246,6 +367,7 @@ export const useGameState = () => {
         return {
           ...prev,
           obstacles: updatedObstacles,
+          suddenEntities: updatedEntities,
           score: newScore,
           gameTime: newGameTime,
           difficulty: newDifficulty,
@@ -263,7 +385,7 @@ export const useGameState = () => {
         cancelAnimationFrame(gameLoopRef.current);
       }
     };
-  }, [gameState.isPlaying, gameState.isPaused, checkCollision]);
+  }, [gameState.isPlaying, gameState.isPaused, checkCollision, checkEntityCollision]);
 
   // Obstacle spawner
   useEffect(() => {
@@ -286,6 +408,59 @@ export const useGameState = () => {
       }
     };
   }, [gameState.isPlaying, gameState.isPaused, gameState.difficulty, spawnObstacle]);
+
+  // Terra storm spawner (every 2 minutes as per BA doc, but we'll do 30s for gameplay)
+  useEffect(() => {
+    if (!gameState.isPlaying || gameState.isPaused) {
+      if (stormTimerRef.current) {
+        clearInterval(stormTimerRef.current);
+      }
+      return;
+    }
+
+    // First storm after 20 seconds, then every 30 seconds
+    const initialDelay = setTimeout(() => {
+      triggerTerraStorm();
+      
+      stormTimerRef.current = window.setInterval(() => {
+        triggerTerraStorm();
+      }, 30000);
+    }, 20000);
+
+    return () => {
+      clearTimeout(initialDelay);
+      if (stormTimerRef.current) {
+        clearInterval(stormTimerRef.current);
+      }
+    };
+  }, [gameState.isPlaying, gameState.isPaused, triggerTerraStorm]);
+
+  // Sudden entity spawner
+  useEffect(() => {
+    if (!gameState.isPlaying || gameState.isPaused) {
+      if (entitySpawnRef.current) {
+        clearInterval(entitySpawnRef.current);
+      }
+      return;
+    }
+
+    // Spawn entities every 8-15 seconds randomly
+    const scheduleNextEntity = () => {
+      const delay = 8000 + Math.random() * 7000;
+      entitySpawnRef.current = window.setTimeout(() => {
+        spawnSuddenEntity();
+        scheduleNextEntity();
+      }, delay);
+    };
+
+    scheduleNextEntity();
+
+    return () => {
+      if (entitySpawnRef.current) {
+        clearTimeout(entitySpawnRef.current);
+      }
+    };
+  }, [gameState.isPlaying, gameState.isPaused, spawnSuddenEntity]);
 
   // Score countdown
   useEffect(() => {
@@ -317,12 +492,22 @@ export const useGameState = () => {
         }
       }
 
-      // Check win condition (score reached 0 = completed journey)
+      // Check entity collision game over
+      for (const entity of gameState.suddenEntities) {
+        if (!entity.isExploding && checkEntityCollision(gameState.playerPosition, entity)) {
+          if (!gameState.hasShield && gameState.lives <= 1) {
+            endGame();
+            return;
+          }
+        }
+      }
+
+      // Check win condition
       if (gameState.score <= 0) {
         endGame();
       }
     }
-  }, [gameState, checkCollision, endGame]);
+  }, [gameState, checkCollision, checkEntityCollision, endGame]);
 
   const goToMenu = useCallback(() => {
     setScreen('menu');
@@ -357,5 +542,6 @@ export const useGameState = () => {
     goToShipSelect,
     restartGame,
     endGame,
+    setSoundCallbacks,
   };
 };
