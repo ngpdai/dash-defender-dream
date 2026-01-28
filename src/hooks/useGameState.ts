@@ -24,13 +24,15 @@ const SHIPS: Record<ShipType, Ship> = {
 
 const INITIAL_SCORE = 2500;
 
-const getHighScore = (): number => {
-  const saved = localStorage.getItem('2500km-highscore');
-  return saved ? parseInt(saved, 10) : 0;
+// Best score = lowest remaining distance (traveled the farthest)
+const getBestScore = (): number => {
+  const saved = localStorage.getItem('2500km-bestscore');
+  // If no saved score, return initial score (worst possible)
+  return saved ? parseInt(saved, 10) : INITIAL_SCORE;
 };
 
-const saveHighScore = (score: number): void => {
-  localStorage.setItem('2500km-highscore', score.toString());
+const saveBestScore = (score: number): void => {
+  localStorage.setItem('2500km-bestscore', score.toString());
 };
 
 const INITIAL_TERRA_STORM: TerraStorm = {
@@ -47,7 +49,7 @@ export const useGameState = () => {
     isPaused: false,
     isGameOver: false,
     score: INITIAL_SCORE,
-    highScore: getHighScore(),
+    highScore: getBestScore(),
     distance: 0,
     selectedShip: null,
     playerPosition: { x: 50, y: 85 },
@@ -256,15 +258,17 @@ export const useGameState = () => {
 
   const endGame = useCallback(() => {
     setGameState(prev => {
-      const newHighScore = prev.score > prev.highScore ? prev.score : prev.highScore;
-      if (prev.score > prev.highScore) {
-        saveHighScore(prev.score);
+      // Lower score = better (traveled farther)
+      const isNewBest = prev.score < prev.highScore;
+      const newBestScore = isNewBest ? prev.score : prev.highScore;
+      if (isNewBest) {
+        saveBestScore(prev.score);
       }
       return {
         ...prev,
         isPlaying: false,
         isGameOver: true,
-        highScore: newHighScore,
+        highScore: newBestScore,
       };
     });
     setScreen('game-over');
