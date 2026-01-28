@@ -27,8 +27,8 @@ const ObstacleComponent = ({ obstacle }: { obstacle: Obstacle }) => {
 
   return (
     <motion.div
-      initial={{ x: '100vw', opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
+      initial={{ y: '-50px', opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
       className="absolute text-3xl"
       style={{
         left: `${obstacle.x}%`,
@@ -47,9 +47,9 @@ const SuddenEntityComponent = ({ entity }: { entity: SuddenEntity }) => {
 
   return (
     <motion.div
-      initial={{ x: '-10%', scale: 0.5, opacity: 0 }}
+      initial={{ y: '50px', scale: 0.5, opacity: 0 }}
       animate={{ 
-        x: 0, 
+        y: 0, 
         scale: entity.isExploding ? [1, 2, 0] : 1, 
         opacity: entity.isExploding ? [1, 1, 0] : 1,
         rotate: entity.isExploding ? [0, 180, 360] : 0,
@@ -61,7 +61,7 @@ const SuddenEntityComponent = ({ entity }: { entity: SuddenEntity }) => {
       style={{
         left: `${entity.x}%`,
         top: `${entity.y}%`,
-        transform: 'translate(-50%, -50%)',
+        transform: 'translate(-50%, -50%) rotate(180deg)',
         filter: isWarning && !entity.isExploding ? 'drop-shadow(0 0 10px #ff0000)' : 'none',
       }}
     >
@@ -293,28 +293,30 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameS
           )}
         </AnimatePresence>
 
-        {/* Grid lines */}
+        {/* Grid lines - vertical scrolling effect */}
         <div className="absolute inset-0 opacity-10">
+          {/* Vertical lines (static) */}
           {[...Array(10)].map((_, i) => (
             <div
-              key={`h-${i}`}
-              className="absolute w-full h-px bg-primary"
-              style={{ top: `${(i + 1) * 10}%` }}
+              key={`v-${i}`}
+              className="absolute h-full w-px bg-primary"
+              style={{ left: `${(i + 1) * 10}%` }}
             />
           ))}
+          {/* Horizontal lines (moving down to create falling effect) */}
           {[...Array(20)].map((_, i) => (
             <motion.div
-              key={`v-${i}`}
-              initial={{ x: '100%' }}
-              animate={{ x: '-100%' }}
+              key={`h-${i}`}
+              initial={{ y: '-100%' }}
+              animate={{ y: '100%' }}
               transition={{
                 duration: 2,
                 repeat: Infinity,
                 ease: 'linear',
                 delay: i * 0.1,
               }}
-              className="absolute h-full w-px bg-primary/50"
-              style={{ left: `${(i + 1) * 5}%` }}
+              className="absolute w-full h-px bg-primary/50"
+              style={{ top: `${(i + 1) * 5}%` }}
             />
           ))}
         </div>
@@ -338,17 +340,18 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameS
                 className="absolute inset-0 -m-4 rounded-full border-2 border-primary bg-primary/10"
               />
             )}
-            {/* Ship */}
+            {/* Ship - rotated to point upward */}
             <motion.div
               animate={{ y: [0, -3, 0] }}
               transition={{ duration: 0.5, repeat: Infinity }}
               className="text-4xl md:text-5xl"
+              style={{ transform: 'rotate(-90deg)' }}
             >
               {shipData?.id === 'speeder' ? '🚀' : '🛸'}
             </motion.div>
-            {/* Engine glow */}
+            {/* Engine glow - now at bottom */}
             <div
-              className={`absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-2 rounded-full blur-sm ${
+              className={`absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-2 w-2 h-4 rounded-full blur-sm ${
                 shipData?.color === 'cyan' ? 'bg-primary' : 'bg-secondary'
               }`}
             />

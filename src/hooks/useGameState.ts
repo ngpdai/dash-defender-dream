@@ -50,7 +50,7 @@ export const useGameState = () => {
     highScore: getHighScore(),
     distance: 0,
     selectedShip: null,
-    playerPosition: { x: 10, y: 50 },
+    playerPosition: { x: 50, y: 85 },
     obstacles: [],
     suddenEntities: [],
     terraStorm: INITIAL_TERRA_STORM,
@@ -111,7 +111,7 @@ export const useGameState = () => {
       isGameOver: false,
       score: INITIAL_SCORE,
       distance: 0,
-      playerPosition: { x: 10, y: 50 },
+      playerPosition: { x: 50, y: 85 },
       obstacles: [],
       suddenEntities: [],
       terraStorm: INITIAL_TERRA_STORM,
@@ -134,16 +134,16 @@ export const useGameState = () => {
 
       switch (direction) {
         case 'up':
-          newY = Math.max(10, prev.playerPosition.y - moveAmount);
+          newY = Math.max(20, prev.playerPosition.y - moveAmount);
           break;
         case 'down':
           newY = Math.min(90, prev.playerPosition.y + moveAmount);
           break;
         case 'left':
-          newX = Math.max(5, prev.playerPosition.x - moveAmount);
+          newX = Math.max(10, prev.playerPosition.x - moveAmount);
           break;
         case 'right':
-          newX = Math.min(25, prev.playerPosition.x + moveAmount);
+          newX = Math.min(90, prev.playerPosition.x + moveAmount);
           break;
       }
 
@@ -158,10 +158,11 @@ export const useGameState = () => {
     const types: Obstacle['type'][] = ['asteroid', 'debris', 'mine'];
     const type = types[Math.floor(Math.random() * types.length)];
     
+    // Spawn from top, random X position across the screen
     const obstacle: Obstacle = {
       id: `obs-${Date.now()}-${Math.random()}`,
-      x: 105,
-      y: Math.random() * 80 + 10,
+      x: Math.random() * 80 + 10, // Random X position (10% to 90%)
+      y: -10, // Start above the screen
       width: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
       height: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
       type,
@@ -176,10 +177,11 @@ export const useGameState = () => {
   const spawnSuddenEntity = useCallback(() => {
     onIncomingRef.current();
     
+    // Spawn from bottom (behind player), random X position
     const entity: SuddenEntity = {
       id: `entity-${Date.now()}-${Math.random()}`,
-      x: -10,
-      y: Math.random() * 60 + 20,
+      x: Math.random() * 60 + 20, // Random X position
+      y: 110, // Start below the screen (behind player)
       spawnTime: Date.now(),
       isExploding: false,
     };
@@ -283,14 +285,14 @@ export const useGameState = () => {
       lastTimeRef.current = timestamp;
 
       setGameState(prev => {
-        // Move obstacles
+        // Move obstacles downward (vertical movement)
         const speed = 0.05 * prev.difficulty;
         const updatedObstacles = prev.obstacles
-          .map(obs => ({ ...obs, x: obs.x - speed * deltaTime }))
-          .filter(obs => obs.x > -20);
+          .map(obs => ({ ...obs, y: obs.y + speed * deltaTime })) // Move DOWN
+          .filter(obs => obs.y < 120); // Remove when off bottom of screen
 
-        // Move sudden entities (faster, from behind)
-        const entitySpeed = 0.08;
+        // Move sudden entities upward (from behind/below player)
+        const entitySpeed = 0.1;
         const now = Date.now();
         let updatedEntities = prev.suddenEntities
           .map(entity => {
@@ -298,16 +300,16 @@ export const useGameState = () => {
             const shouldExplode = timeSinceSpawn >= 3000;
             return {
               ...entity,
-              x: entity.x + entitySpeed * deltaTime,
+              y: entity.y - entitySpeed * deltaTime, // Move UP toward player
               isExploding: shouldExplode || entity.isExploding,
             };
           })
           .filter(entity => {
-            if (entity.isExploding && entity.x > -5) {
+            if (entity.isExploding && entity.y < 105) {
               onExplosionRef.current();
               return false;
             }
-            return entity.x < 110;
+            return entity.y > -10; // Remove when off top of screen
           });
 
         // Check obstacle collisions
