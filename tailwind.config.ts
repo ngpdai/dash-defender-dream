@@ -2,7 +2,12 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   prefix: "",
   theme: {
     container: {
@@ -14,8 +19,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        orbitron: ['Orbitron', 'sans-serif'],
-        rajdhani: ['Rajdhani', 'sans-serif'],
+        orbitron: ["Orbitron", "sans-serif"],
+        rajdhani: ["Rajdhani", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -51,12 +56,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        neon: {
-          cyan: "hsl(var(--neon-cyan))",
-          pink: "hsl(var(--neon-pink))",
-          purple: "hsl(var(--neon-purple))",
-          blue: "hsl(var(--neon-blue))",
-        },
         space: {
           dark: "hsl(var(--space-dark))",
           medium: "hsl(var(--space-medium))",
@@ -76,27 +75,36 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
-        "ship-hover": {
-          "0%, 100%": { transform: "translateY(0) rotate(0deg)" },
-          "25%": { transform: "translateY(-5px) rotate(1deg)" },
-          "75%": { transform: "translateY(5px) rotate(-1deg)" },
+        shake: {
+          "0%, 100%": { transform: "translateX(0)" },
+          "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-2px)" },
+          "20%, 40%, 60%, 80%": { transform: "translateX(2px)" },
         },
-        "obstacle-spawn": {
-          "0%": { transform: "translateX(100%) scale(0.5)", opacity: "0" },
-          "100%": { transform: "translateX(0) scale(1)", opacity: "1" },
+        "storm-warp": {
+          "0%, 100%": { transform: "scale(1) rotate(0deg)", opacity: "0.5" },
+          "25%": { transform: "scale(1.02) rotate(0.5deg)", opacity: "0.7" },
+          "50%": { transform: "scale(0.98) rotate(-0.5deg)", opacity: "0.6" },
+          "75%": { transform: "scale(1.01) rotate(0.3deg)", opacity: "0.8" },
         },
-        "explosion": {
-          "0%": { transform: "scale(1)", opacity: "1" },
-          "50%": { transform: "scale(1.5)", opacity: "0.8" },
-          "100%": { transform: "scale(2)", opacity: "0" },
+        scanlines: {
+          "0%": { transform: "translateY(0)" },
+          "100%": { transform: "translateY(4px)" },
+        },
+        glitch: {
+          "0%, 100%": { transform: "translateX(0)" },
+          "20%": { transform: "translateX(-3px)" },
+          "40%": { transform: "translateX(3px)" },
+          "60%": { transform: "translateX(-1px)" },
+          "80%": { transform: "translateX(1px)" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "ship-hover": "ship-hover 2s ease-in-out infinite",
-        "obstacle-spawn": "obstacle-spawn 0.3s ease-out",
-        "explosion": "explosion 0.5s ease-out forwards",
+        shake: "shake 0.5s ease-in-out infinite",
+        "storm-warp": "storm-warp 2s ease-in-out infinite",
+        scanlines: "scanlines 0.1s linear infinite",
+        glitch: "glitch 0.3s ease-in-out infinite",
       },
     },
   },

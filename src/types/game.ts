@@ -24,6 +24,21 @@ export interface Obstacle {
   type: 'asteroid' | 'debris' | 'mine';
 }
 
+export interface SuddenEntity {
+  id: string;
+  x: number;
+  y: number;
+  spawnTime: number;
+  isExploding: boolean;
+}
+
+export interface TerraStorm {
+  active: boolean;
+  startTime: number;
+  duration: number;
+  intensity: number;
+}
+
 export interface GameState {
   isPlaying: boolean;
   isPaused: boolean;
@@ -34,6 +49,8 @@ export interface GameState {
   selectedShip: ShipType | null;
   playerPosition: Position;
   obstacles: Obstacle[];
+  suddenEntities: SuddenEntity[];
+  terraStorm: TerraStorm;
   lives: number;
   hasShield: boolean;
   difficulty: number;
