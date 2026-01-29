@@ -326,8 +326,13 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameS
           animate={{
             left: `${gameState.playerPosition.x}%`,
             top: `${gameState.playerPosition.y}%`,
+            opacity: gameState.isInvincible ? [1, 0.3, 1] : 1,
           }}
-          transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+          transition={{ 
+            left: { type: 'spring', stiffness: 300, damping: 20 },
+            top: { type: 'spring', stiffness: 300, damping: 20 },
+            opacity: gameState.isInvincible ? { duration: 0.2, repeat: Infinity } : { duration: 0 },
+          }}
           className="absolute transform -translate-x-1/2 -translate-y-1/2"
           style={{ zIndex: 10 }}
         >
@@ -342,8 +347,14 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameS
             )}
             {/* Ship - rotated to point upward */}
             <motion.div
-              animate={{ y: [0, -3, 0] }}
-              transition={{ duration: 0.5, repeat: Infinity }}
+              animate={{ 
+                y: [0, -3, 0],
+                scale: gameState.isInvincible ? [1, 1.1, 1] : 1,
+              }}
+              transition={{ 
+                y: { duration: 0.5, repeat: Infinity },
+                scale: gameState.isInvincible ? { duration: 0.15, repeat: Infinity } : { duration: 0 },
+              }}
               className="text-4xl md:text-5xl"
               style={{ transform: 'rotate(-90deg)' }}
             >
