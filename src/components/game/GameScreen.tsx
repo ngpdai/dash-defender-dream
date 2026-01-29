@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Shield, Gauge, AlertTriangle } from 'lucide-react';
 import { GameState, Ship, Obstacle, SuddenEntity } from '@/types/game';
+import { AsteroidVisual, UFOVisual, TitanShip, SpeederShip } from './GameVisuals';
 
 interface GameScreenProps {
   gameState: GameState;
@@ -12,31 +13,18 @@ interface GameScreenProps {
 }
 
 const ObstacleComponent = ({ obstacle }: { obstacle: Obstacle }) => {
-  const getObstacleEmoji = () => {
-    switch (obstacle.type) {
-      case 'asteroid':
-        return '☄️';
-      case 'debris':
-        return '🪨';
-      case 'mine':
-        return '💥';
-      default:
-        return '🌑';
-    }
-  };
-
   return (
     <motion.div
       initial={{ y: '-50px', opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      className="absolute text-3xl"
+      className="absolute"
       style={{
         left: `${obstacle.x}%`,
         top: `${obstacle.y}%`,
         transform: 'translate(-50%, -50%)',
       }}
     >
-      {getObstacleEmoji()}
+      <AsteroidVisual type={obstacle.type} />
     </motion.div>
   );
 };
@@ -45,27 +33,27 @@ const SuddenEntityComponent = ({ entity }: { entity: SuddenEntity }) => {
   const timeSinceSpawn = Date.now() - entity.spawnTime;
   const isWarning = timeSinceSpawn > 2000; // Flash warning in last second
 
+  // Don't render if exploding (removed explosion visual)
+  if (entity.isExploding) return null;
+
   return (
     <motion.div
       initial={{ y: '50px', scale: 0.5, opacity: 0 }}
       animate={{ 
         y: 0, 
-        scale: entity.isExploding ? [1, 2, 0] : 1, 
-        opacity: entity.isExploding ? [1, 1, 0] : 1,
-        rotate: entity.isExploding ? [0, 180, 360] : 0,
+        scale: 1, 
+        opacity: 1,
       }}
-      transition={{ 
-        duration: entity.isExploding ? 0.3 : 0.2,
-      }}
-      className={`absolute text-3xl ${isWarning && !entity.isExploding ? 'animate-pulse' : ''}`}
+      transition={{ duration: 0.2 }}
+      className={`absolute ${isWarning ? 'animate-pulse' : ''}`}
       style={{
         left: `${entity.x}%`,
         top: `${entity.y}%`,
-        transform: 'translate(-50%, -50%) rotate(180deg)',
-        filter: isWarning && !entity.isExploding ? 'drop-shadow(0 0 10px #ff0000)' : 'none',
+        transform: 'translate(-50%, -50%)',
+        filter: isWarning ? 'drop-shadow(0 0 10px hsl(var(--destructive)))' : 'none',
       }}
     >
-      {entity.isExploding ? '💥' : '🛸'}
+      <UFOVisual isExploding={entity.isExploding} />
     </motion.div>
   );
 };
@@ -345,27 +333,12 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameS
                 className="absolute inset-0 -m-4 rounded-full border-2 border-primary bg-primary/10"
               />
             )}
-            {/* Ship - rotated to point upward */}
-            <motion.div
-              animate={{ 
-                y: [0, -3, 0],
-                scale: gameState.isInvincible ? [1, 1.1, 1] : 1,
-              }}
-              transition={{ 
-                y: { duration: 0.5, repeat: Infinity },
-                scale: gameState.isInvincible ? { duration: 0.15, repeat: Infinity } : { duration: 0 },
-              }}
-              className="text-4xl md:text-5xl"
-              style={{ transform: 'rotate(-90deg)' }}
-            >
-              {shipData?.id === 'speeder' ? '🚀' : '🛸'}
-            </motion.div>
-            {/* Engine glow - now at bottom */}
-            <div
-              className={`absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-2 w-2 h-4 rounded-full blur-sm ${
-                shipData?.color === 'cyan' ? 'bg-primary' : 'bg-secondary'
-              }`}
-            />
+            {/* Ship - custom visual component */}
+            {shipData?.id === 'speeder' ? (
+              <SpeederShip isInvincible={gameState.isInvincible} />
+            ) : (
+              <TitanShip isInvincible={gameState.isInvincible} />
+            )}
           </div>
         </motion.div>
 
