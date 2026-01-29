@@ -1,6 +1,9 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm } from '@/types/game';
 
+// Invincibility time after getting hit (in ms)
+const INVINCIBILITY_DURATION = 1500;
+
 const SHIPS: Record<ShipType, Ship> = {
   speeder: {
     id: 'speeder',
@@ -60,6 +63,8 @@ export const useGameState = () => {
     hasShield: false,
     difficulty: 1,
     gameTime: 0,
+    isInvincible: false,
+    lastHitTime: 0,
   });
 
   const gameLoopRef = useRef<number | null>(null);
@@ -121,6 +126,8 @@ export const useGameState = () => {
       hasShield: ship.shield,
       difficulty: 1,
       gameTime: 0,
+      isInvincible: false,
+      lastHitTime: 0,
     }));
   }, [gameState.selectedShip]);
 
@@ -336,27 +343,48 @@ export const useGameState = () => {
           return true;
         });
 
-        if (hitObstacle || hitEntity) {
+        // Check if player is invincible (recently got hit)
+        const isCurrentlyInvincible = prev.isInvincible && (Date.now() - prev.lastHitTime < INVINCIBILITY_DURATION);
+
+        if ((hitObstacle || hitEntity) && !isCurrentlyInvincible) {
+          const now = Date.now();
+          
           if (prev.hasShield) {
+            // Shield absorbs the hit
             onShieldBreakRef.current();
             return { 
               ...prev, 
               obstacles: updatedObstacles, 
               suddenEntities: updatedEntities,
-              hasShield: false 
+              hasShield: false,
+              isInvincible: true,
+              lastHitTime: now,
             };
           } else if (prev.lives > 1) {
+            // Lose a life but continue
             onCollisionRef.current();
             return { 
               ...prev, 
               obstacles: updatedObstacles, 
               suddenEntities: updatedEntities,
-              lives: prev.lives - 1 
+              lives: prev.lives - 1,
+              isInvincible: true,
+              lastHitTime: now,
             };
           } else {
-            return prev;
+            // No shield, no extra lives - game over will be handled by the effect
+            onCollisionRef.current();
+            return {
+              ...prev,
+              obstacles: updatedObstacles,
+              suddenEntities: updatedEntities,
+              lives: 0,
+            };
           }
         }
+        
+        // Update invincibility status
+        const stillInvincible = prev.isInvincible && (Date.now() - prev.lastHitTime < INVINCIBILITY_DURATION);
 
         // Update score and time
         const newGameTime = prev.gameTime + deltaTime / 1000;
@@ -378,6 +406,7 @@ export const useGameState = () => {
           gameTime: newGameTime,
           difficulty: newDifficulty,
           distance: prev.distance + speed * deltaTime,
+          isInvincible: stillInvincible,
         };
       });
 
@@ -485,27 +514,13 @@ export const useGameState = () => {
     return () => clearInterval(scoreInterval);
   }, [gameState.isPlaying, gameState.isPaused]);
 
-  // Check for game over conditions
+  // Check for game over conditions (only when lives reach 0)
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isGameOver) {
-      // Check collision game over
-      for (const obs of gameState.obstacles) {
-        if (checkCollision(gameState.playerPosition, obs)) {
-          if (!gameState.hasShield && gameState.lives <= 1) {
-            endGame();
-            return;
-          }
-        }
-      }
-
-      // Check entity collision game over
-      for (const entity of gameState.suddenEntities) {
-        if (!entity.isExploding && checkEntityCollision(gameState.playerPosition, entity)) {
-          if (!gameState.hasShield && gameState.lives <= 1) {
-            endGame();
-            return;
-          }
-        }
+      // Game over when no lives left
+      if (gameState.lives <= 0) {
+        endGame();
+        return;
       }
 
       // Check win condition
@@ -513,7 +528,7 @@ export const useGameState = () => {
         endGame();
       }
     }
-  }, [gameState, checkCollision, checkEntityCollision, endGame]);
+  }, [gameState.isPlaying, gameState.isGameOver, gameState.lives, gameState.score, endGame]);
 
   const goToMenu = useCallback(() => {
     setScreen('menu');

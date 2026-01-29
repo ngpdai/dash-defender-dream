@@ -55,6 +55,8 @@ export interface GameState {
   hasShield: boolean;
   difficulty: number;
   gameTime: number;
+  isInvincible: boolean;
+  lastHitTime: number;
 }
 
 export type GameScreen = 'menu' | 'ship-select' | 'game' | 'game-over';
