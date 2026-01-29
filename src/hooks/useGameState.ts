@@ -163,25 +163,80 @@ export const useGameState = () => {
     });
   }, [gameState.isPlaying, gameState.isPaused, selectedShipData]);
 
-  const spawnObstacle = useCallback(() => {
-    const types: Obstacle['type'][] = ['asteroid', 'debris', 'mine'];
-    const type = types[Math.floor(Math.random() * types.length)];
-    
-    // Spawn from top, random X position across the screen
-    const obstacle: Obstacle = {
-      id: `obs-${Date.now()}-${Math.random()}`,
-      x: Math.random() * 80 + 10, // Random X position (10% to 90%)
-      y: -10, // Start above the screen
-      width: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
-      height: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
-      type,
-    };
-
-    setGameState(prev => ({
-      ...prev,
-      obstacles: [...prev.obstacles, obstacle],
-    }));
+  // Calculate obstacle density multiplier based on game time (20% increase every 60 seconds)
+  const getDensityMultiplier = useCallback((gameTime: number): number => {
+    return 1 + Math.floor(gameTime / 60) * 0.2;
   }, []);
+
+  const spawnObstacles = useCallback(() => {
+    setGameState(prev => {
+      const densityMultiplier = getDensityMultiplier(prev.gameTime);
+      const newObstacles: Obstacle[] = [];
+      
+      // Base number of obstacles (1-3), increased by density
+      const baseCount = Math.floor(Math.random() * 2) + 1;
+      const obstacleCount = Math.min(5, Math.ceil(baseCount * densityMultiplier));
+      
+      // Track used positions to ensure spacing
+      const usedPositions: number[] = [];
+      const minSpacing = 20; // Minimum 20% spacing between obstacles
+      
+      for (let i = 0; i < obstacleCount; i++) {
+        const types: Obstacle['type'][] = ['asteroid', 'debris', 'mine'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        
+        // Find a valid X position with proper spacing
+        let x: number;
+        let attempts = 0;
+        do {
+          x = Math.random() * 70 + 15; // 15% to 85% for better margins
+          attempts++;
+        } while (
+          attempts < 10 &&
+          usedPositions.some(pos => Math.abs(pos - x) < minSpacing)
+        );
+        
+        // Only add if we found a valid position
+        if (attempts < 10 || usedPositions.length === 0) {
+          usedPositions.push(x);
+          
+          // Stagger Y positions slightly for more dynamic patterns
+          const yOffset = Math.random() * 15;
+          
+          const obstacle: Obstacle = {
+            id: `obs-${Date.now()}-${Math.random()}-${i}`,
+            x,
+            y: -10 - yOffset,
+            width: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
+            height: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
+            type,
+          };
+          
+          newObstacles.push(obstacle);
+        }
+      }
+      
+      // Occasionally spawn side-coming debris (from left or right)
+      if (Math.random() < 0.3 * densityMultiplier) {
+        const fromLeft = Math.random() > 0.5;
+        const sideObstacle: Obstacle = {
+          id: `obs-side-${Date.now()}-${Math.random()}`,
+          x: fromLeft ? -10 : 110,
+          y: 30 + Math.random() * 40, // Middle area of screen
+          width: 10,
+          height: 10,
+          type: 'debris',
+          direction: fromLeft ? 'right' : 'left', // Add direction for side movement
+        };
+        newObstacles.push(sideObstacle);
+      }
+
+      return {
+        ...prev,
+        obstacles: [...prev.obstacles, ...newObstacles],
+      };
+    });
+  }, [getDensityMultiplier]);
 
   const spawnSuddenEntity = useCallback(() => {
     onIncomingRef.current();
@@ -296,11 +351,24 @@ export const useGameState = () => {
       lastTimeRef.current = timestamp;
 
       setGameState(prev => {
-        // Move obstacles downward (vertical movement)
+        // Move obstacles (vertical + side-coming)
         const speed = 0.05 * prev.difficulty;
+        const sideSpeed = 0.03 * prev.difficulty;
         const updatedObstacles = prev.obstacles
-          .map(obs => ({ ...obs, y: obs.y + speed * deltaTime })) // Move DOWN
-          .filter(obs => obs.y < 120); // Remove when off bottom of screen
+          .map(obs => {
+            if (obs.direction === 'left') {
+              return { ...obs, x: obs.x - sideSpeed * deltaTime };
+            } else if (obs.direction === 'right') {
+              return { ...obs, x: obs.x + sideSpeed * deltaTime };
+            }
+            return { ...obs, y: obs.y + speed * deltaTime };
+          })
+          .filter(obs => {
+            // Remove when off screen
+            if (obs.direction === 'left') return obs.x > -15;
+            if (obs.direction === 'right') return obs.x < 115;
+            return obs.y < 120;
+          });
 
         // Move sudden entities upward (from behind/below player)
         const entitySpeed = 0.1;
@@ -434,7 +502,7 @@ export const useGameState = () => {
     const spawnInterval = Math.max(800, 2000 - gameState.difficulty * 200);
     
     obstacleSpawnRef.current = window.setInterval(() => {
-      spawnObstacle();
+      spawnObstacles();
     }, spawnInterval);
 
     return () => {
@@ -442,7 +510,7 @@ export const useGameState = () => {
         clearInterval(obstacleSpawnRef.current);
       }
     };
-  }, [gameState.isPlaying, gameState.isPaused, gameState.difficulty, spawnObstacle]);
+  }, [gameState.isPlaying, gameState.isPaused, gameState.difficulty, spawnObstacles]);
 
   // Terra storm spawner (every 2 minutes as per BA doc, but we'll do 30s for gameplay)
   useEffect(() => {
