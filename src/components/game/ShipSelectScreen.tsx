@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft, Zap, Shield, Heart } from 'lucide-react';
 import { Ship, ShipType } from '@/types/game';
+import { ShipPreview } from './GameVisuals';
 
 interface ShipSelectScreenProps {
   ships: Record<ShipType, Ship>;
@@ -53,21 +54,9 @@ const ShipSelectScreen = ({ ships, onSelect, onBack }: ShipSelectScreenProps) =>
                 : 'border-secondary/50 hover:border-secondary bg-space-medium/30 hover:bg-space-medium/50 box-glow-pink'
             }`}
           >
-            {/* Ship Visualization */}
+            {/* Ship Visualization - Custom component */}
             <div className="relative h-32 mb-6 flex items-center justify-center">
-              <motion.div
-                animate={{ y: [0, -8, 0] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                className={`text-6xl ${ship.color === 'cyan' ? 'text-primary' : 'text-secondary'}`}
-              >
-                {ship.id === 'speeder' ? '🚀' : '🛸'}
-              </motion.div>
-              {/* Glow effect */}
-              <div
-                className={`absolute inset-0 blur-3xl opacity-20 ${
-                  ship.color === 'cyan' ? 'bg-primary' : 'bg-secondary'
-                }`}
-              />
+              <ShipPreview shipId={ship.id} color={ship.color} />
             </div>
 
             {/* Ship Info */}
