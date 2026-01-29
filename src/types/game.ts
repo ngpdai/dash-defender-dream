@@ -22,6 +22,7 @@ export interface Obstacle {
   width: number;
   height: number;
   type: 'asteroid' | 'debris' | 'mine';
+  direction?: 'left' | 'right'; // For side-coming obstacles
 }
 
 export interface SuddenEntity {
