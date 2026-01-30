@@ -1,8 +1,24 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm } from '@/types/game';
+import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm, HitboxConfig } from '@/types/game';
 
 // Invincibility time after getting hit (in ms)
 const INVINCIBILITY_DURATION = 1500;
+
+// Hitbox configurations - sizes are in % of screen
+// These are "forgiving" hitboxes, smaller than visual to feel fair
+const HITBOX_CONFIG: Record<string, HitboxConfig> = {
+  // Ships - hitbox is ~70% of visual size for forgiving collision
+  speeder: { width: 4, height: 5 },  // Visual: ~6x8, Hitbox: ~4x5 (smaller, agile ship)
+  tank: { width: 5, height: 6 },      // Visual: ~7x8, Hitbox: ~5x6 (bigger but still forgiving)
+  
+  // Obstacles - hitbox is ~70-80% of visual to feel fair
+  asteroid: { width: 6, height: 6 },   // Visual: ~8x8, Hitbox: ~6x6
+  debris: { width: 4, height: 4 },     // Visual: ~6x6, Hitbox: ~4x4
+  mine: { width: 4, height: 4 },       // Visual: ~6x6, Hitbox: ~4x4
+  
+  // Sudden entities (UFO)
+  ufo: { width: 5, height: 5 },        // Visual: ~8x8, Hitbox: ~5x5
+};
 
 const SHIPS: Record<ShipType, Ship> = {
   speeder: {
@@ -66,6 +82,7 @@ export const useGameState = () => {
     isInvincible: false,
     lastHitTime: 0,
     dodgePopups: [],
+    showHitboxes: false,
   });
 
   const gameLoopRef = useRef<number | null>(null);
@@ -130,6 +147,7 @@ export const useGameState = () => {
       isInvincible: false,
       lastHitTime: 0,
       dodgePopups: [],
+      showHitboxes: prev.showHitboxes, // Preserve debug state
     }));
   }, [gameState.selectedShip]);
 
@@ -285,37 +303,42 @@ export const useGameState = () => {
     }, 5000);
   }, []);
 
-  const checkCollision = useCallback((playerPos: { x: number; y: number }, obstacle: Obstacle): boolean => {
-    const playerWidth = 8;
-    const playerHeight = 6;
+  const checkCollision = useCallback((playerPos: { x: number; y: number }, obstacle: Obstacle, shipType: ShipType | null): boolean => {
+    // Get hitbox configs based on ship and obstacle type
+    const shipHitbox = shipType ? HITBOX_CONFIG[shipType] : HITBOX_CONFIG.speeder;
+    const obsHitbox = HITBOX_CONFIG[obstacle.type] || { width: obstacle.width * 0.7, height: obstacle.height * 0.7 };
     
-    const playerLeft = playerPos.x;
-    const playerRight = playerPos.x + playerWidth;
-    const playerTop = playerPos.y - playerHeight / 2;
-    const playerBottom = playerPos.y + playerHeight / 2;
+    // Player hitbox - centered on position
+    const playerLeft = playerPos.x - shipHitbox.width / 2;
+    const playerRight = playerPos.x + shipHitbox.width / 2;
+    const playerTop = playerPos.y - shipHitbox.height / 2;
+    const playerBottom = playerPos.y + shipHitbox.height / 2;
 
-    const obsLeft = obstacle.x;
-    const obsRight = obstacle.x + obstacle.width;
-    const obsTop = obstacle.y - obstacle.height / 2;
-    const obsBottom = obstacle.y + obstacle.height / 2;
+    // Obstacle hitbox - centered on position
+    const obsLeft = obstacle.x - obsHitbox.width / 2;
+    const obsRight = obstacle.x + obsHitbox.width / 2;
+    const obsTop = obstacle.y - obsHitbox.height / 2;
+    const obsBottom = obstacle.y + obsHitbox.height / 2;
 
     return !(playerRight < obsLeft || playerLeft > obsRight || playerBottom < obsTop || playerTop > obsBottom);
   }, []);
 
-  const checkEntityCollision = useCallback((playerPos: { x: number; y: number }, entity: SuddenEntity): boolean => {
-    const playerWidth = 8;
-    const playerHeight = 6;
-    const entitySize = 10;
+  const checkEntityCollision = useCallback((playerPos: { x: number; y: number }, entity: SuddenEntity, shipType: ShipType | null): boolean => {
+    // Get hitbox configs
+    const shipHitbox = shipType ? HITBOX_CONFIG[shipType] : HITBOX_CONFIG.speeder;
+    const entityHitbox = HITBOX_CONFIG.ufo;
     
-    const playerLeft = playerPos.x;
-    const playerRight = playerPos.x + playerWidth;
-    const playerTop = playerPos.y - playerHeight / 2;
-    const playerBottom = playerPos.y + playerHeight / 2;
+    // Player hitbox - centered on position
+    const playerLeft = playerPos.x - shipHitbox.width / 2;
+    const playerRight = playerPos.x + shipHitbox.width / 2;
+    const playerTop = playerPos.y - shipHitbox.height / 2;
+    const playerBottom = playerPos.y + shipHitbox.height / 2;
 
-    const entityLeft = entity.x;
-    const entityRight = entity.x + entitySize;
-    const entityTop = entity.y - entitySize / 2;
-    const entityBottom = entity.y + entitySize / 2;
+    // Entity hitbox - centered on position
+    const entityLeft = entity.x - entityHitbox.width / 2;
+    const entityRight = entity.x + entityHitbox.width / 2;
+    const entityTop = entity.y - entityHitbox.height / 2;
+    const entityBottom = entity.y + entityHitbox.height / 2;
 
     return !(playerRight < entityLeft || playerLeft > entityRight || playerBottom < entityTop || playerTop > entityBottom);
   }, []);
@@ -440,7 +463,7 @@ export const useGameState = () => {
         // Check obstacle collisions
         let hitObstacle = false;
         for (const obs of updatedObstacles) {
-          if (checkCollision(prev.playerPosition, obs)) {
+          if (checkCollision(prev.playerPosition, obs, prev.selectedShip)) {
             hitObstacle = true;
             break;
           }
@@ -449,7 +472,7 @@ export const useGameState = () => {
         // Check entity collisions
         let hitEntity = false;
         updatedEntities = updatedEntities.filter(entity => {
-          if (!entity.isExploding && checkEntityCollision(prev.playerPosition, entity)) {
+          if (!entity.isExploding && checkEntityCollision(prev.playerPosition, entity, prev.selectedShip)) {
             hitEntity = true;
             onExplosionRef.current();
             return false;
@@ -675,6 +698,13 @@ export const useGameState = () => {
     }
   }, [gameState.selectedShip, startGame]);
 
+  const toggleHitboxDebug = useCallback(() => {
+    setGameState(prev => ({
+      ...prev,
+      showHitboxes: !prev.showHitboxes,
+    }));
+  }, []);
+
   return {
     screen,
     gameState,
@@ -688,5 +718,7 @@ export const useGameState = () => {
     restartGame,
     endGame,
     setSoundCallbacks,
+    toggleHitboxDebug,
+    hitboxConfig: HITBOX_CONFIG,
   };
 };
