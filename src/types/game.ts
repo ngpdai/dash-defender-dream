@@ -1,5 +1,10 @@
 export type ShipType = 'speeder' | 'tank';
 
+export interface HitboxConfig {
+  width: number;
+  height: number;
+}
+
 export interface Ship {
   id: ShipType;
   name: string;
@@ -67,6 +72,7 @@ export interface GameState {
   isInvincible: boolean;
   lastHitTime: number;
   dodgePopups: DodgePopup[];
+  showHitboxes: boolean; // Debug mode to visualize hitboxes
 }
 
 export type GameScreen = 'menu' | 'ship-select' | 'game' | 'game-over';

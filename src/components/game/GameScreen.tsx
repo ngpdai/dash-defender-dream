@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, Shield, Gauge, AlertTriangle } from 'lucide-react';
-import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup } from '@/types/game';
+import { Heart, Shield, Gauge, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup, HitboxConfig } from '@/types/game';
 import { AsteroidVisual, UFOVisual, TitanShip, SpeederShip } from './GameVisuals';
 
 interface GameScreenProps {
@@ -10,51 +10,104 @@ interface GameScreenProps {
   onMove: (direction: 'up' | 'down' | 'left' | 'right') => void;
   onStart: () => void;
   onMoveSound?: () => void;
+  onToggleHitboxDebug?: () => void;
+  hitboxConfig?: Record<string, HitboxConfig>;
 }
 
-const ObstacleComponent = ({ obstacle }: { obstacle: Obstacle }) => {
+// Hitbox debug overlay component
+const HitboxOverlay = ({ 
+  x, y, width, height, color = 'red' 
+}: { x: number; y: number; width: number; height: number; color?: string }) => (
+  <div
+    className="absolute pointer-events-none"
+    style={{
+      left: `${x - width / 2}%`,
+      top: `${y - height / 2}%`,
+      width: `${width}%`,
+      height: `${height}%`,
+      border: `2px solid ${color}`,
+      backgroundColor: `${color}20`,
+      zIndex: 100,
+    }}
+  />
+);
+
+const ObstacleComponent = ({ obstacle, showHitbox, hitboxConfig }: { 
+  obstacle: Obstacle; 
+  showHitbox?: boolean;
+  hitboxConfig?: Record<string, HitboxConfig>;
+}) => {
+  const hitbox = hitboxConfig?.[obstacle.type];
+  
   return (
-    <motion.div
-      initial={{ y: '-50px', opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      className="absolute"
-      style={{
-        left: `${obstacle.x}%`,
-        top: `${obstacle.y}%`,
-        transform: 'translate(-50%, -50%)',
-      }}
-    >
-      <AsteroidVisual type={obstacle.type} />
-    </motion.div>
+    <>
+      <motion.div
+        initial={{ y: '-50px', opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="absolute"
+        style={{
+          left: `${obstacle.x}%`,
+          top: `${obstacle.y}%`,
+          transform: 'translate(-50%, -50%)',
+        }}
+      >
+        <AsteroidVisual type={obstacle.type} />
+      </motion.div>
+      {showHitbox && hitbox && (
+        <HitboxOverlay 
+          x={obstacle.x} 
+          y={obstacle.y} 
+          width={hitbox.width} 
+          height={hitbox.height}
+          color="orange"
+        />
+      )}
+    </>
   );
 };
 
-const SuddenEntityComponent = ({ entity }: { entity: SuddenEntity }) => {
+const SuddenEntityComponent = ({ entity, showHitbox, hitboxConfig }: { 
+  entity: SuddenEntity;
+  showHitbox?: boolean;
+  hitboxConfig?: Record<string, HitboxConfig>;
+}) => {
   const timeSinceSpawn = Date.now() - entity.spawnTime;
   const isWarning = timeSinceSpawn > 2000; // Flash warning in last second
+  const hitbox = hitboxConfig?.ufo;
 
   // Don't render if exploding (removed explosion visual)
   if (entity.isExploding) return null;
 
   return (
-    <motion.div
-      initial={{ y: '50px', scale: 0.5, opacity: 0 }}
-      animate={{ 
-        y: 0, 
-        scale: 1, 
-        opacity: 1,
-      }}
-      transition={{ duration: 0.2 }}
-      className={`absolute ${isWarning ? 'animate-pulse' : ''}`}
-      style={{
-        left: `${entity.x}%`,
-        top: `${entity.y}%`,
-        transform: 'translate(-50%, -50%)',
-        filter: isWarning ? 'drop-shadow(0 0 10px hsl(var(--destructive)))' : 'none',
-      }}
-    >
-      <UFOVisual isExploding={entity.isExploding} />
-    </motion.div>
+    <>
+      <motion.div
+        initial={{ y: '50px', scale: 0.5, opacity: 0 }}
+        animate={{ 
+          y: 0, 
+          scale: 1, 
+          opacity: 1,
+        }}
+        transition={{ duration: 0.2 }}
+        className={`absolute ${isWarning ? 'animate-pulse' : ''}`}
+        style={{
+          left: `${entity.x}%`,
+          top: `${entity.y}%`,
+          transform: 'translate(-50%, -50%)',
+          filter: isWarning ? 'drop-shadow(0 0 10px hsl(var(--destructive)))' : 'none',
+        }}
+      >
+        <UFOVisual isExploding={entity.isExploding} />
+      </motion.div>
+      {showHitbox && hitbox && (
+        <HitboxOverlay 
+          x={entity.x} 
+          y={entity.y} 
+          width={hitbox.width} 
+          height={hitbox.height}
+          color="purple"
+        />
+      )}
+    </>
   );
 };
 
@@ -136,7 +189,7 @@ const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
   );
 };
 
-const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameScreenProps) => {
+const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, hitboxConfig }: GameScreenProps) => {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showStartPrompt, setShowStartPrompt] = useState(true);
@@ -284,6 +337,25 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameS
               {gameState.difficulty.toFixed(1)}x
             </span>
           </div>
+          
+          {/* Debug Hitbox Toggle */}
+          {onToggleHitboxDebug && (
+            <button
+              onClick={onToggleHitboxDebug}
+              className={`flex items-center gap-1 px-2 py-1 rounded border transition-colors ${
+                gameState.showHitboxes 
+                  ? 'bg-destructive/20 border-destructive/50 text-destructive' 
+                  : 'bg-muted/20 border-muted/30 text-muted-foreground'
+              }`}
+              title="Toggle hitbox debug view"
+            >
+              {gameState.showHitboxes ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -361,15 +433,36 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameS
             )}
           </div>
         </motion.div>
+        
+        {/* Player Ship Hitbox Debug */}
+        {gameState.showHitboxes && hitboxConfig && shipData && (
+          <HitboxOverlay 
+            x={gameState.playerPosition.x} 
+            y={gameState.playerPosition.y} 
+            width={hitboxConfig[shipData.id]?.width || 4} 
+            height={hitboxConfig[shipData.id]?.height || 5}
+            color="lime"
+          />
+        )}
 
         {/* Obstacles */}
         {gameState.obstacles.map(obstacle => (
-          <ObstacleComponent key={obstacle.id} obstacle={obstacle} />
+          <ObstacleComponent 
+            key={obstacle.id} 
+            obstacle={obstacle} 
+            showHitbox={gameState.showHitboxes}
+            hitboxConfig={hitboxConfig}
+          />
         ))}
 
         {/* Sudden Entities */}
         {gameState.suddenEntities.map(entity => (
-          <SuddenEntityComponent key={entity.id} entity={entity} />
+          <SuddenEntityComponent 
+            key={entity.id} 
+            entity={entity}
+            showHitbox={gameState.showHitboxes}
+            hitboxConfig={hitboxConfig}
+          />
         ))}
 
         {/* Dodge Popups */}

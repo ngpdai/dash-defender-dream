@@ -21,6 +21,8 @@ const Game = () => {
     goToShipSelect,
     restartGame,
     setSoundCallbacks,
+    toggleHitboxDebug,
+    hitboxConfig,
   } = useGameState();
 
   const {
@@ -101,6 +103,8 @@ const Game = () => {
             onMove={movePlayer}
             onStart={handleStart}
             onMoveSound={playMoveSound}
+            onToggleHitboxDebug={toggleHitboxDebug}
+            hitboxConfig={hitboxConfig}
           />
         )}
 
