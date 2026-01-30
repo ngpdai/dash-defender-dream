@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Shield, Gauge, AlertTriangle } from 'lucide-react';
-import { GameState, Ship, Obstacle, SuddenEntity } from '@/types/game';
+import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup } from '@/types/game';
 import { AsteroidVisual, UFOVisual, TitanShip, SpeederShip } from './GameVisuals';
 
 interface GameScreenProps {
@@ -54,6 +54,26 @@ const SuddenEntityComponent = ({ entity }: { entity: SuddenEntity }) => {
       }}
     >
       <UFOVisual isExploding={entity.isExploding} />
+    </motion.div>
+  );
+};
+
+const DodgePopupComponent = ({ popup }: { popup: DodgePopup }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 1, y: 0, scale: 1 }}
+      animate={{ opacity: 0, y: -30, scale: 1.2 }}
+      transition={{ duration: 0.8, ease: 'easeOut' }}
+      className="absolute pointer-events-none z-30"
+      style={{
+        left: `${popup.x}%`,
+        top: `${popup.y}%`,
+        transform: 'translate(-50%, -50%)',
+      }}
+    >
+      <span className="font-orbitron text-lg font-bold text-primary text-glow-cyan">
+        -10
+      </span>
     </motion.div>
   );
 };
@@ -352,6 +372,12 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound }: GameS
           <SuddenEntityComponent key={entity.id} entity={entity} />
         ))}
 
+        {/* Dodge Popups */}
+        <AnimatePresence>
+          {gameState.dodgePopups.map(popup => (
+            <DodgePopupComponent key={popup.id} popup={popup} />
+          ))}
+        </AnimatePresence>
         {/* Start Prompt */}
         {showStartPrompt && !gameState.isPlaying && (
           <motion.div

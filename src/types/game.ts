@@ -23,6 +23,14 @@ export interface Obstacle {
   height: number;
   type: 'asteroid' | 'debris' | 'mine';
   direction?: 'left' | 'right'; // For side-coming obstacles
+  passed?: boolean; // Track if obstacle has been counted for dodge score
+}
+
+export interface DodgePopup {
+  id: string;
+  x: number;
+  y: number;
+  createdAt: number;
 }
 
 export interface SuddenEntity {
@@ -58,6 +66,7 @@ export interface GameState {
   gameTime: number;
   isInvincible: boolean;
   lastHitTime: number;
+  dodgePopups: DodgePopup[];
 }
 
 export type GameScreen = 'menu' | 'ship-select' | 'game' | 'game-over';

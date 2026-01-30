@@ -65,6 +65,7 @@ export const useGameState = () => {
     gameTime: 0,
     isInvincible: false,
     lastHitTime: 0,
+    dodgePopups: [],
   });
 
   const gameLoopRef = useRef<number | null>(null);
@@ -128,6 +129,7 @@ export const useGameState = () => {
       gameTime: 0,
       isInvincible: false,
       lastHitTime: 0,
+      dodgePopups: [],
     }));
   }, [gameState.selectedShip]);
 
@@ -354,14 +356,58 @@ export const useGameState = () => {
         // Move obstacles (vertical + side-coming)
         const speed = 0.05 * prev.difficulty;
         const sideSpeed = 0.03 * prev.difficulty;
+        const playerY = prev.playerPosition.y;
+        const playerX = prev.playerPosition.x;
+        
+        let dodgeCount = 0;
+        const newDodgePopups: Array<{ id: string; x: number; y: number; createdAt: number }> = [];
+        
         const updatedObstacles = prev.obstacles
           .map(obs => {
+            let newObs = { ...obs };
+            
             if (obs.direction === 'left') {
-              return { ...obs, x: obs.x - sideSpeed * deltaTime };
+              newObs.x = obs.x - sideSpeed * deltaTime;
+              // Check if passed player for horizontal obstacles
+              if (!obs.passed && obs.x < playerX && obs.x > playerX - 15) {
+                newObs.passed = true;
+                dodgeCount++;
+                newDodgePopups.push({
+                  id: `dodge-${Date.now()}-${Math.random()}`,
+                  x: obs.x,
+                  y: obs.y,
+                  createdAt: Date.now(),
+                });
+              }
             } else if (obs.direction === 'right') {
-              return { ...obs, x: obs.x + sideSpeed * deltaTime };
+              newObs.x = obs.x + sideSpeed * deltaTime;
+              // Check if passed player for horizontal obstacles
+              if (!obs.passed && obs.x > playerX && obs.x < playerX + 15) {
+                newObs.passed = true;
+                dodgeCount++;
+                newDodgePopups.push({
+                  id: `dodge-${Date.now()}-${Math.random()}`,
+                  x: obs.x,
+                  y: obs.y,
+                  createdAt: Date.now(),
+                });
+              }
+            } else {
+              newObs.y = obs.y + speed * deltaTime;
+              // Check if passed player for vertical obstacles (when obstacle goes past player's Y position)
+              if (!obs.passed && obs.y > playerY && obs.y < playerY + 15) {
+                newObs.passed = true;
+                dodgeCount++;
+                newDodgePopups.push({
+                  id: `dodge-${Date.now()}-${Math.random()}`,
+                  x: obs.x,
+                  y: obs.y,
+                  createdAt: Date.now(),
+                });
+              }
             }
-            return { ...obs, y: obs.y + speed * deltaTime };
+            
+            return newObs;
           })
           .filter(obs => {
             // Remove when off screen
@@ -454,13 +500,22 @@ export const useGameState = () => {
         // Update invincibility status
         const stillInvincible = prev.isInvincible && (Date.now() - prev.lastHitTime < INVINCIBILITY_DURATION);
 
-        // Update score and time
+        // Update game time
         const newGameTime = prev.gameTime + deltaTime / 1000;
-        const timeDeduction = Math.floor(deltaTime / 1000);
-        const newScore = Math.max(0, prev.score - timeDeduction);
+        
+        // Calculate dodge score deduction (-10 per dodge)
+        const dodgeDeduction = dodgeCount * 10;
+        
+        // Calculate new score (only dodge deductions in game loop, time deduction handled separately)
+        let newScore = Math.max(0, prev.score - dodgeDeduction);
         
         // Increase difficulty
         const newDifficulty = 1 + Math.floor(newGameTime / 30) * 0.1;
+
+        // Clean up old dodge popups (remove after 1 second)
+        const activePopups = [...prev.dodgePopups, ...newDodgePopups].filter(
+          popup => Date.now() - popup.createdAt < 1000
+        );
 
         if (newScore <= 0) {
           return prev;
@@ -475,6 +530,7 @@ export const useGameState = () => {
           difficulty: newDifficulty,
           distance: prev.distance + speed * deltaTime,
           isInvincible: stillInvincible,
+          dodgePopups: activePopups,
         };
       });
 
@@ -565,19 +621,19 @@ export const useGameState = () => {
     };
   }, [gameState.isPlaying, gameState.isPaused, spawnSuddenEntity]);
 
-  // Score countdown
+  // Score countdown (-5 every 5 seconds)
   useEffect(() => {
     if (!gameState.isPlaying || gameState.isPaused) return;
 
     const scoreInterval = setInterval(() => {
       setGameState(prev => {
-        const newScore = Math.max(0, prev.score - 1);
+        const newScore = Math.max(0, prev.score - 5);
         if (newScore <= 0) {
           return prev;
         }
         return { ...prev, score: newScore };
       });
-    }, 1000);
+    }, 5000); // Every 5 seconds
 
     return () => clearInterval(scoreInterval);
   }, [gameState.isPlaying, gameState.isPaused]);
