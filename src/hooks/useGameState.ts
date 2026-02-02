@@ -5,19 +5,21 @@ import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraSto
 const INVINCIBILITY_DURATION = 1500;
 
 // Hitbox configurations - sizes are in % of screen
-// These are "forgiving" hitboxes, smaller than visual to feel fair
+// These are "forgiving" hitboxes, SMALLER than visual to feel fair
+// Visual sizes calculated: w-10 = ~2.5%, w-8 = ~2%, w-12 = ~3% of viewport
 const HITBOX_CONFIG: Record<string, HitboxConfig> = {
-  // Ships - hitbox is ~70% of visual size for forgiving collision
-  speeder: { width: 4, height: 5 },  // Visual: ~6x8, Hitbox: ~4x5 (smaller, agile ship)
-  tank: { width: 5, height: 6 },      // Visual: ~7x8, Hitbox: ~5x6 (bigger but still forgiving)
+  // Ships - hitbox is ~80% of visual size for forgiving collision
+  speeder: { width: 2.5, height: 3.5 },  // Visual: w-10 h-14 (~2.5x3.5%), Hitbox: slightly smaller
+  tank: { width: 3, height: 4 },          // Visual: w-12 h-14 (~3x3.5%), Hitbox: slightly smaller
   
-  // Obstacles - hitbox is ~70-80% of visual to feel fair
-  asteroid: { width: 6, height: 6 },   // Visual: ~8x8, Hitbox: ~6x6
-  debris: { width: 4, height: 4 },     // Visual: ~6x6, Hitbox: ~4x4
-  mine: { width: 4, height: 4 },       // Visual: ~6x6, Hitbox: ~4x4
+  // Obstacles - hitbox matches visual sprites EXACTLY, or 10% smaller for fairness
+  // w-10 h-10 = approximately 2.5% x 2.5% of screen
+  asteroid: { width: 2.2, height: 2.2 },   // Visual: w-10 h-10, Hitbox: 90% of visual
+  debris: { width: 1.8, height: 1.8 },     // Visual: w-8 h-8, Hitbox: 90% of visual  
+  mine: { width: 1.8, height: 1.8 },       // Visual: w-8 h-8, Hitbox: 90% of visual
   
-  // Sudden entities (UFO)
-  ufo: { width: 5, height: 5 },        // Visual: ~8x8, Hitbox: ~5x5
+  // Sudden entities (UFO) - w-12 h-12 = approximately 3% x 3%
+  ufo: { width: 2.5, height: 2.5 },        // Visual: w-12 h-12, Hitbox: 85% of visual
 };
 
 const SHIPS: Record<ShipType, Ship> = {
