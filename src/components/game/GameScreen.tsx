@@ -14,22 +14,63 @@ interface GameScreenProps {
   hitboxConfig?: Record<string, HitboxConfig>;
 }
 
-// Hitbox debug overlay component
+// Hitbox debug overlay component - now uses PIXELS for accurate sizing
 const HitboxOverlay = ({ 
-  x, y, width, height, color = 'red' 
-}: { x: number; y: number; width: number; height: number; color?: string }) => (
-  <div
-    className="absolute pointer-events-none"
-    style={{
-      left: `${x - width / 2}%`,
-      top: `${y - height / 2}%`,
-      width: `${width}%`,
-      height: `${height}%`,
-      border: `2px solid ${color}`,
-      backgroundColor: `${color}20`,
-      zIndex: 100,
-    }}
-  />
+  x, y, width, height, color = 'red', showCenterMarker = true 
+}: { x: number; y: number; width: number; height: number; color?: string; showCenterMarker?: boolean }) => (
+  <>
+    {/* Hitbox rectangle - pixel-based sizing */}
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        left: `${x}%`,
+        top: `${y}%`,
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: 'translate(-50%, -50%)', // Center on position
+        border: `2px solid ${color}`,
+        backgroundColor: `${color}20`,
+        borderRadius: '4px',
+        zIndex: 100,
+      }}
+    >
+      {/* Center marker for hitbox (yellow +) */}
+      {showCenterMarker && (
+        <>
+          <div 
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-0.5 bg-yellow-400"
+            style={{ boxShadow: '0 0 4px yellow' }}
+          />
+          <div 
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-3 bg-yellow-400"
+            style={{ boxShadow: '0 0 4px yellow' }}
+          />
+        </>
+      )}
+    </div>
+    
+    {/* Sprite center marker (cyan +) - should overlap with yellow if aligned correctly */}
+    {showCenterMarker && (
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          left: `${x}%`,
+          top: `${y}%`,
+          transform: 'translate(-50%, -50%)',
+          zIndex: 101,
+        }}
+      >
+        <div 
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-0.5 bg-cyan-400"
+          style={{ boxShadow: '0 0 6px cyan' }}
+        />
+        <div 
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-4 bg-cyan-400"
+          style={{ boxShadow: '0 0 6px cyan' }}
+        />
+      </div>
+    )}
+  </>
 );
 
 const ObstacleComponent = ({ obstacle, showHitbox, hitboxConfig }: { 
@@ -439,8 +480,8 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
           <HitboxOverlay 
             x={gameState.playerPosition.x} 
             y={gameState.playerPosition.y} 
-            width={hitboxConfig[shipData.id]?.width || 4} 
-            height={hitboxConfig[shipData.id]?.height || 5}
+            width={hitboxConfig[shipData.id]?.width || 36} 
+            height={hitboxConfig[shipData.id]?.height || 50}
             color="lime"
           />
         )}

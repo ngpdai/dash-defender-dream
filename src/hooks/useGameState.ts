@@ -4,22 +4,21 @@ import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraSto
 // Invincibility time after getting hit (in ms)
 const INVINCIBILITY_DURATION = 1500;
 
-// Hitbox configurations - sizes are in % of screen
-// These are "forgiving" hitboxes, SMALLER than visual to feel fair
-// Visual sizes calculated: w-10 = ~2.5%, w-8 = ~2%, w-12 = ~3% of viewport
+// Hitbox configurations - sizes are in PIXELS to match visual sprites exactly
+// Visual sprite sizes: w-10=40px, w-8=32px, w-12=48px, h-14=56px, h-16=64px
+// Hitbox = 90% of visual size for "forgiving" but fair collision
 const HITBOX_CONFIG: Record<string, HitboxConfig> = {
-  // Ships - hitbox is ~80% of visual size for forgiving collision
-  speeder: { width: 2.5, height: 3.5 },  // Visual: w-10 h-14 (~2.5x3.5%), Hitbox: slightly smaller
-  tank: { width: 3, height: 4 },          // Visual: w-12 h-14 (~3x3.5%), Hitbox: slightly smaller
+  // Ships - hitbox is 90% of visual size
+  speeder: { width: 36, height: 50 },    // Visual: w-10 h-14 (40x56px), Hitbox: 90% = 36x50px
+  tank: { width: 43, height: 58 },       // Visual: w-12 h-16 (48x64px), Hitbox: 90% = 43x58px
   
-  // Obstacles - hitbox matches visual sprites EXACTLY, or 10% smaller for fairness
-  // w-10 h-10 = approximately 2.5% x 2.5% of screen
-  asteroid: { width: 2.2, height: 2.2 },   // Visual: w-10 h-10, Hitbox: 90% of visual
-  debris: { width: 1.8, height: 1.8 },     // Visual: w-8 h-8, Hitbox: 90% of visual  
-  mine: { width: 1.8, height: 1.8 },       // Visual: w-8 h-8, Hitbox: 90% of visual
+  // Obstacles - hitbox is 90% of visual sprite size
+  asteroid: { width: 36, height: 36 },   // Visual: w-10 h-10 (40x40px), Hitbox: 90% = 36x36px
+  debris: { width: 29, height: 29 },     // Visual: w-8 h-8 (32x32px), Hitbox: 90% = 29x29px
+  mine: { width: 29, height: 29 },       // Visual: w-8 h-8 (32x32px), Hitbox: 90% = 29x29px
   
-  // Sudden entities (UFO) - w-12 h-12 = approximately 3% x 3%
-  ufo: { width: 2.5, height: 2.5 },        // Visual: w-12 h-12, Hitbox: 85% of visual
+  // Sudden entities (UFO)
+  ufo: { width: 43, height: 43 },        // Visual: w-12 h-12 (48x48px), Hitbox: 90% = 43x43px
 };
 
 const SHIPS: Record<ShipType, Ship> = {
@@ -305,45 +304,68 @@ export const useGameState = () => {
     }, 5000);
   }, []);
 
-  const checkCollision = useCallback((playerPos: { x: number; y: number }, obstacle: Obstacle, shipType: ShipType | null): boolean => {
-    // Get hitbox configs based on ship and obstacle type
-    const shipHitbox = shipType ? HITBOX_CONFIG[shipType] : HITBOX_CONFIG.speeder;
-    const obsHitbox = HITBOX_CONFIG[obstacle.type] || { width: obstacle.width * 0.7, height: obstacle.height * 0.7 };
-    
-    // Player hitbox - centered on position
-    const playerLeft = playerPos.x - shipHitbox.width / 2;
-    const playerRight = playerPos.x + shipHitbox.width / 2;
-    const playerTop = playerPos.y - shipHitbox.height / 2;
-    const playerBottom = playerPos.y + shipHitbox.height / 2;
-
-    // Obstacle hitbox - centered on position
-    const obsLeft = obstacle.x - obsHitbox.width / 2;
-    const obsRight = obstacle.x + obsHitbox.width / 2;
-    const obsTop = obstacle.y - obsHitbox.height / 2;
-    const obsBottom = obstacle.y + obsHitbox.height / 2;
-
-    return !(playerRight < obsLeft || playerLeft > obsRight || playerBottom < obsTop || playerTop > obsBottom);
+  // Convert pixel hitbox to percentage based on typical game area size
+  // Game area is roughly 100vw x 80vh, but we use a reference size for consistency
+  // Reference: 400px width, 600px height (typical mobile game area)
+  const pixelToPercentX = useCallback((pixels: number): number => {
+    return (pixels / 400) * 100;
+  }, []);
+  
+  const pixelToPercentY = useCallback((pixels: number): number => {
+    return (pixels / 600) * 100;
   }, []);
 
+  const checkCollision = useCallback((playerPos: { x: number; y: number }, obstacle: Obstacle, shipType: ShipType | null): boolean => {
+    // Get hitbox configs based on ship and obstacle type (in pixels)
+    const shipHitbox = shipType ? HITBOX_CONFIG[shipType] : HITBOX_CONFIG.speeder;
+    const obsHitbox = HITBOX_CONFIG[obstacle.type] || { width: 36, height: 36 };
+    
+    // Convert pixel hitboxes to percentage of game area
+    const shipWidthPercent = pixelToPercentX(shipHitbox.width);
+    const shipHeightPercent = pixelToPercentY(shipHitbox.height);
+    const obsWidthPercent = pixelToPercentX(obsHitbox.width);
+    const obsHeightPercent = pixelToPercentY(obsHitbox.height);
+    
+    // Player hitbox - centered on position (in percentages)
+    const playerLeft = playerPos.x - shipWidthPercent / 2;
+    const playerRight = playerPos.x + shipWidthPercent / 2;
+    const playerTop = playerPos.y - shipHeightPercent / 2;
+    const playerBottom = playerPos.y + shipHeightPercent / 2;
+
+    // Obstacle hitbox - centered on position (in percentages)
+    const obsLeft = obstacle.x - obsWidthPercent / 2;
+    const obsRight = obstacle.x + obsWidthPercent / 2;
+    const obsTop = obstacle.y - obsHeightPercent / 2;
+    const obsBottom = obstacle.y + obsHeightPercent / 2;
+
+    return !(playerRight < obsLeft || playerLeft > obsRight || playerBottom < obsTop || playerTop > obsBottom);
+  }, [pixelToPercentX, pixelToPercentY]);
+
   const checkEntityCollision = useCallback((playerPos: { x: number; y: number }, entity: SuddenEntity, shipType: ShipType | null): boolean => {
-    // Get hitbox configs
+    // Get hitbox configs (in pixels)
     const shipHitbox = shipType ? HITBOX_CONFIG[shipType] : HITBOX_CONFIG.speeder;
     const entityHitbox = HITBOX_CONFIG.ufo;
     
+    // Convert pixel hitboxes to percentage of game area
+    const shipWidthPercent = pixelToPercentX(shipHitbox.width);
+    const shipHeightPercent = pixelToPercentY(shipHitbox.height);
+    const entityWidthPercent = pixelToPercentX(entityHitbox.width);
+    const entityHeightPercent = pixelToPercentY(entityHitbox.height);
+    
     // Player hitbox - centered on position
-    const playerLeft = playerPos.x - shipHitbox.width / 2;
-    const playerRight = playerPos.x + shipHitbox.width / 2;
-    const playerTop = playerPos.y - shipHitbox.height / 2;
-    const playerBottom = playerPos.y + shipHitbox.height / 2;
+    const playerLeft = playerPos.x - shipWidthPercent / 2;
+    const playerRight = playerPos.x + shipWidthPercent / 2;
+    const playerTop = playerPos.y - shipHeightPercent / 2;
+    const playerBottom = playerPos.y + shipHeightPercent / 2;
 
     // Entity hitbox - centered on position
-    const entityLeft = entity.x - entityHitbox.width / 2;
-    const entityRight = entity.x + entityHitbox.width / 2;
-    const entityTop = entity.y - entityHitbox.height / 2;
-    const entityBottom = entity.y + entityHitbox.height / 2;
+    const entityLeft = entity.x - entityWidthPercent / 2;
+    const entityRight = entity.x + entityWidthPercent / 2;
+    const entityTop = entity.y - entityHeightPercent / 2;
+    const entityBottom = entity.y + entityHeightPercent / 2;
 
     return !(playerRight < entityLeft || playerLeft > entityRight || playerBottom < entityTop || playerTop > entityBottom);
-  }, []);
+  }, [pixelToPercentX, pixelToPercentY]);
 
   const endGame = useCallback(() => {
     setGameState(prev => {
