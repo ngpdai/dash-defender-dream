@@ -1,8 +1,18 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm, HitboxConfig } from '@/types/game';
 
+// Debug flag - set to false for production builds
+const DEBUG_MODE = import.meta.env.DEV;
+
 // Invincibility time after getting hit (in ms)
 const INVINCIBILITY_DURATION = 1500;
+
+// Fixed lane positions (X-axis) based on a 5-lane grid system
+// Lanes are evenly distributed across the playable area (15% to 85%)
+const LANES = {
+  positions: [17, 32, 50, 68, 83], // 5 lanes: far-left, left, center, right, far-right
+  count: 5,
+};
 
 // Hitbox configurations - sizes are in PIXELS to match visual sprites exactly
 // Visual sprite sizes: w-10=40px, w-8=32px, w-12=48px, h-14=56px, h-16=64px
@@ -12,7 +22,7 @@ const HITBOX_CONFIG: Record<string, HitboxConfig> = {
   speeder: { width: 36, height: 50 },    // Visual: w-10 h-14 (40x56px), Hitbox: 90% = 36x50px
   tank: { width: 43, height: 58 },       // Visual: w-12 h-16 (48x64px), Hitbox: 90% = 43x58px
   
-  // Obstacles - hitbox is 90% of visual sprite size
+  // Obstacles - hitbox is 90% of visual sprite size (rectangular box colliders)
   asteroid: { width: 36, height: 36 },   // Visual: w-10 h-10 (40x40px), Hitbox: 90% = 36x36px
   debris: { width: 29, height: 29 },     // Visual: w-8 h-8 (32x32px), Hitbox: 90% = 29x29px
   mine: { width: 29, height: 29 },       // Visual: w-8 h-8 (32x32px), Hitbox: 90% = 29x29px
@@ -83,7 +93,7 @@ export const useGameState = () => {
     isInvincible: false,
     lastHitTime: 0,
     dodgePopups: [],
-    showHitboxes: false,
+    showHitboxes: false, // Only toggleable in debug mode
   });
 
   const gameLoopRef = useRef<number | null>(null);
@@ -148,7 +158,7 @@ export const useGameState = () => {
       isInvincible: false,
       lastHitTime: 0,
       dodgePopups: [],
-      showHitboxes: prev.showHitboxes, // Preserve debug state
+      showHitboxes: DEBUG_MODE ? prev.showHitboxes : false, // Reset debug in production
     }));
   }, [gameState.selectedShip]);
 
@@ -157,6 +167,9 @@ export const useGameState = () => {
 
     const speed = selectedShipData?.speed || 1;
     const moveAmount = 8 * speed;
+    
+    // Apply wind force during Terra Storm
+    const windForce = gameState.terraStorm.active ? gameState.terraStorm.intensity * 2 : 0;
 
     setGameState(prev => {
       let newY = prev.playerPosition.y;
@@ -176,78 +189,89 @@ export const useGameState = () => {
           newX = Math.min(90, prev.playerPosition.x + moveAmount);
           break;
       }
+      
+      // Apply wind force (pushes player slightly during storm)
+      if (prev.terraStorm.active && windForce > 0) {
+        // Wind alternates direction based on time
+        const windDirection = Math.sin(Date.now() / 500) > 0 ? 1 : -1;
+        newX = Math.max(10, Math.min(90, newX + windDirection * windForce));
+      }
 
       return {
         ...prev,
         playerPosition: { x: newX, y: newY },
       };
     });
-  }, [gameState.isPlaying, gameState.isPaused, selectedShipData]);
+  }, [gameState.isPlaying, gameState.isPaused, gameState.terraStorm, selectedShipData]);
 
   // Calculate obstacle density multiplier based on game time (20% increase every 60 seconds)
   const getDensityMultiplier = useCallback((gameTime: number): number => {
     return 1 + Math.floor(gameTime / 60) * 0.2;
   }, []);
 
+  // Get random lane position (ensures obstacles spawn on fixed lanes)
+  const getRandomLane = useCallback((excludeLanes: number[] = []): number => {
+    const availableLanes = LANES.positions.filter(lane => 
+      !excludeLanes.some(excluded => Math.abs(excluded - lane) < 10)
+    );
+    if (availableLanes.length === 0) {
+      return LANES.positions[Math.floor(Math.random() * LANES.count)];
+    }
+    return availableLanes[Math.floor(Math.random() * availableLanes.length)];
+  }, []);
+
   const spawnObstacles = useCallback(() => {
     setGameState(prev => {
       const densityMultiplier = getDensityMultiplier(prev.gameTime);
+      // Increase density during Terra Storm
+      const stormMultiplier = prev.terraStorm.active ? 1.5 : 1;
+      const effectiveDensity = densityMultiplier * stormMultiplier;
+      
       const newObstacles: Obstacle[] = [];
       
       // Base number of obstacles (1-3), increased by density
       const baseCount = Math.floor(Math.random() * 2) + 1;
-      const obstacleCount = Math.min(5, Math.ceil(baseCount * densityMultiplier));
+      const obstacleCount = Math.min(4, Math.ceil(baseCount * effectiveDensity));
       
-      // Track used positions to ensure spacing
-      const usedPositions: number[] = [];
-      const minSpacing = 20; // Minimum 20% spacing between obstacles
+      // Track used lanes to prevent overlap
+      const usedLanes: number[] = [];
       
       for (let i = 0; i < obstacleCount; i++) {
         const types: Obstacle['type'][] = ['asteroid', 'debris', 'mine'];
         const type = types[Math.floor(Math.random() * types.length)];
         
-        // Find a valid X position with proper spacing
-        let x: number;
-        let attempts = 0;
-        do {
-          x = Math.random() * 70 + 15; // 15% to 85% for better margins
-          attempts++;
-        } while (
-          attempts < 10 &&
-          usedPositions.some(pos => Math.abs(pos - x) < minSpacing)
-        );
+        // Get a random lane that isn't already used
+        const laneX = getRandomLane(usedLanes);
+        usedLanes.push(laneX);
         
-        // Only add if we found a valid position
-        if (attempts < 10 || usedPositions.length === 0) {
-          usedPositions.push(x);
-          
-          // Stagger Y positions slightly for more dynamic patterns
-          const yOffset = Math.random() * 15;
-          
-          const obstacle: Obstacle = {
-            id: `obs-${Date.now()}-${Math.random()}-${i}`,
-            x,
-            y: -10 - yOffset,
-            width: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
-            height: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
-            type,
-          };
-          
-          newObstacles.push(obstacle);
-        }
+        // Stagger Y positions slightly for more dynamic patterns
+        const yOffset = Math.random() * 10;
+        
+        const obstacle: Obstacle = {
+          id: `obs-${Date.now()}-${Math.random()}-${i}`,
+          x: laneX,
+          y: -10 - yOffset,
+          width: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
+          height: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
+          type,
+        };
+        
+        newObstacles.push(obstacle);
       }
       
       // Occasionally spawn side-coming debris (from left or right)
-      if (Math.random() < 0.3 * densityMultiplier) {
+      if (Math.random() < 0.25 * effectiveDensity) {
         const fromLeft = Math.random() > 0.5;
+        // Side debris targets a random lane
+        const targetLane = getRandomLane();
         const sideObstacle: Obstacle = {
           id: `obs-side-${Date.now()}-${Math.random()}`,
           x: fromLeft ? -10 : 110,
-          y: 30 + Math.random() * 40, // Middle area of screen
+          y: 30 + Math.random() * 30, // Middle area of screen (lane-like Y positioning)
           width: 10,
           height: 10,
           type: 'debris',
-          direction: fromLeft ? 'right' : 'left', // Add direction for side movement
+          direction: fromLeft ? 'right' : 'left',
         };
         newObstacles.push(sideObstacle);
       }
@@ -257,15 +281,17 @@ export const useGameState = () => {
         obstacles: [...prev.obstacles, ...newObstacles],
       };
     });
-  }, [getDensityMultiplier]);
+  }, [getDensityMultiplier, getRandomLane]);
 
   const spawnSuddenEntity = useCallback(() => {
     onIncomingRef.current();
     
-    // Spawn from bottom (behind player), random X position
+    // Spawn on a random lane (behind player)
+    const laneX = getRandomLane();
+    
     const entity: SuddenEntity = {
       id: `entity-${Date.now()}-${Math.random()}`,
-      x: Math.random() * 60 + 20, // Random X position
+      x: laneX,
       y: 110, // Start below the screen (behind player)
       spawnTime: Date.now(),
       isExploding: false,
@@ -275,7 +301,7 @@ export const useGameState = () => {
       ...prev,
       suddenEntities: [...prev.suddenEntities, entity],
     }));
-  }, []);
+  }, [getRandomLane]);
 
   const triggerTerraStorm = useCallback(() => {
     onStormRef.current();
@@ -304,17 +330,20 @@ export const useGameState = () => {
     }, 5000);
   }, []);
 
-  // Convert pixel hitbox to percentage based on typical game area size
-  // Game area is roughly 100vw x 80vh, but we use a reference size for consistency
-  // Reference: 400px width, 600px height (typical mobile game area)
+  // Reference game area size for coordinate conversion
+  // Using consistent reference: 400px width, 600px height
+  const GAME_AREA_REF = { width: 400, height: 600 };
+
+  // Convert pixel hitbox to percentage based on reference game area
   const pixelToPercentX = useCallback((pixels: number): number => {
-    return (pixels / 400) * 100;
+    return (pixels / GAME_AREA_REF.width) * 100;
   }, []);
   
   const pixelToPercentY = useCallback((pixels: number): number => {
-    return (pixels / 600) * 100;
+    return (pixels / GAME_AREA_REF.height) * 100;
   }, []);
 
+  // Box collision detection - both hitboxes use same coordinate system (percentages)
   const checkCollision = useCallback((playerPos: { x: number; y: number }, obstacle: Obstacle, shipType: ShipType | null): boolean => {
     // Get hitbox configs based on ship and obstacle type (in pixels)
     const shipHitbox = shipType ? HITBOX_CONFIG[shipType] : HITBOX_CONFIG.speeder;
@@ -326,18 +355,19 @@ export const useGameState = () => {
     const obsWidthPercent = pixelToPercentX(obsHitbox.width);
     const obsHeightPercent = pixelToPercentY(obsHitbox.height);
     
-    // Player hitbox - centered on position (in percentages)
+    // Player hitbox - centered on position (anchor 0.5, 0.5)
     const playerLeft = playerPos.x - shipWidthPercent / 2;
     const playerRight = playerPos.x + shipWidthPercent / 2;
     const playerTop = playerPos.y - shipHeightPercent / 2;
     const playerBottom = playerPos.y + shipHeightPercent / 2;
 
-    // Obstacle hitbox - centered on position (in percentages)
+    // Obstacle hitbox - centered on position (anchor 0.5, 0.5)
     const obsLeft = obstacle.x - obsWidthPercent / 2;
     const obsRight = obstacle.x + obsWidthPercent / 2;
     const obsTop = obstacle.y - obsHeightPercent / 2;
     const obsBottom = obstacle.y + obsHeightPercent / 2;
 
+    // AABB collision detection (axis-aligned bounding box)
     return !(playerRight < obsLeft || playerLeft > obsRight || playerBottom < obsTop || playerTop > obsBottom);
   }, [pixelToPercentX, pixelToPercentY]);
 
@@ -352,18 +382,19 @@ export const useGameState = () => {
     const entityWidthPercent = pixelToPercentX(entityHitbox.width);
     const entityHeightPercent = pixelToPercentY(entityHitbox.height);
     
-    // Player hitbox - centered on position
+    // Player hitbox - centered on position (anchor 0.5, 0.5)
     const playerLeft = playerPos.x - shipWidthPercent / 2;
     const playerRight = playerPos.x + shipWidthPercent / 2;
     const playerTop = playerPos.y - shipHeightPercent / 2;
     const playerBottom = playerPos.y + shipHeightPercent / 2;
 
-    // Entity hitbox - centered on position
+    // Entity hitbox - centered on position (anchor 0.5, 0.5)
     const entityLeft = entity.x - entityWidthPercent / 2;
     const entityRight = entity.x + entityWidthPercent / 2;
     const entityTop = entity.y - entityHeightPercent / 2;
     const entityBottom = entity.y + entityHeightPercent / 2;
 
+    // AABB collision detection
     return !(playerRight < entityLeft || playerLeft > entityRight || playerBottom < entityTop || playerTop > entityBottom);
   }, [pixelToPercentX, pixelToPercentY]);
 
@@ -385,7 +416,7 @@ export const useGameState = () => {
     setScreen('game-over');
   }, []);
 
-  // Game loop
+  // Game loop with synchronized speed multiplier
   useEffect(() => {
     if (!gameState.isPlaying || gameState.isPaused) {
       if (gameLoopRef.current) {
@@ -400,9 +431,18 @@ export const useGameState = () => {
       lastTimeRef.current = timestamp;
 
       setGameState(prev => {
-        // Move obstacles (vertical + side-coming)
-        const speed = 0.05 * prev.difficulty;
-        const sideSpeed = 0.03 * prev.difficulty;
+        // Base speed multiplier - synchronized across all systems
+        const speedMultiplier = prev.difficulty;
+        // Storm increases speed by additional 40%
+        const stormSpeedBoost = prev.terraStorm.active ? 1.4 : 1;
+        const effectiveSpeed = speedMultiplier * stormSpeedBoost;
+        
+        // Move obstacles (vertical + side-coming) - speed synchronized
+        const baseVerticalSpeed = 0.05;
+        const baseSideSpeed = 0.03;
+        const verticalSpeed = baseVerticalSpeed * effectiveSpeed;
+        const sideSpeed = baseSideSpeed * effectiveSpeed;
+        
         const playerY = prev.playerPosition.y;
         const playerX = prev.playerPosition.x;
         
@@ -440,7 +480,7 @@ export const useGameState = () => {
                 });
               }
             } else {
-              newObs.y = obs.y + speed * deltaTime;
+              newObs.y = obs.y + verticalSpeed * deltaTime;
               // Check if passed player for vertical obstacles (when obstacle goes past player's Y position)
               if (!obs.passed && obs.y > playerY && obs.y < playerY + 15) {
                 newObs.passed = true;
@@ -463,9 +503,11 @@ export const useGameState = () => {
             return obs.y < 120;
           });
 
-        // Move sudden entities upward (from behind/below player)
-        const entitySpeed = 0.1;
+        // Move sudden entities upward (from behind/below player) - speed synchronized
+        const baseEntitySpeed = 0.1;
+        const entitySpeed = baseEntitySpeed * effectiveSpeed;
         const now = Date.now();
+        
         let updatedEntities = prev.suddenEntities
           .map(entity => {
             const timeSinceSpawn = now - entity.spawnTime;
@@ -508,7 +550,7 @@ export const useGameState = () => {
         const isCurrentlyInvincible = prev.isInvincible && (Date.now() - prev.lastHitTime < INVINCIBILITY_DURATION);
 
         if ((hitObstacle || hitEntity) && !isCurrentlyInvincible) {
-          const now = Date.now();
+          const nowHit = Date.now();
           
           if (prev.hasShield) {
             // Shield absorbs the hit
@@ -519,7 +561,7 @@ export const useGameState = () => {
               suddenEntities: updatedEntities,
               hasShield: false,
               isInvincible: true,
-              lastHitTime: now,
+              lastHitTime: nowHit,
             };
           } else if (prev.lives > 1) {
             // Lose a life but continue
@@ -530,7 +572,7 @@ export const useGameState = () => {
               suddenEntities: updatedEntities,
               lives: prev.lives - 1,
               isInvincible: true,
-              lastHitTime: now,
+              lastHitTime: nowHit,
             };
           } else {
             // No shield, no extra lives - game over will be handled by the effect
@@ -556,7 +598,7 @@ export const useGameState = () => {
         // Calculate new score (only dodge deductions in game loop, time deduction handled separately)
         let newScore = Math.max(0, prev.score - dodgeDeduction);
         
-        // Increase difficulty
+        // Increase difficulty (10% every 30 seconds)
         const newDifficulty = 1 + Math.floor(newGameTime / 30) * 0.1;
 
         // Clean up old dodge popups (remove after 1 second)
@@ -575,7 +617,7 @@ export const useGameState = () => {
           score: newScore,
           gameTime: newGameTime,
           difficulty: newDifficulty,
-          distance: prev.distance + speed * deltaTime,
+          distance: prev.distance + verticalSpeed * deltaTime,
           isInvincible: stillInvincible,
           dodgePopups: activePopups,
         };
@@ -593,7 +635,7 @@ export const useGameState = () => {
     };
   }, [gameState.isPlaying, gameState.isPaused, checkCollision, checkEntityCollision]);
 
-  // Obstacle spawner
+  // Obstacle spawner - spawn rate synchronized with difficulty
   useEffect(() => {
     if (!gameState.isPlaying || gameState.isPaused) {
       if (obstacleSpawnRef.current) {
@@ -602,7 +644,10 @@ export const useGameState = () => {
       return;
     }
 
-    const spawnInterval = Math.max(800, 2000 - gameState.difficulty * 200);
+    // Base interval decreases with difficulty (faster spawning)
+    // Storm also increases spawn rate by 30%
+    const stormRateBoost = gameState.terraStorm.active ? 0.7 : 1;
+    const spawnInterval = Math.max(600, (2000 - gameState.difficulty * 200) * stormRateBoost);
     
     obstacleSpawnRef.current = window.setInterval(() => {
       spawnObstacles();
@@ -613,9 +658,9 @@ export const useGameState = () => {
         clearInterval(obstacleSpawnRef.current);
       }
     };
-  }, [gameState.isPlaying, gameState.isPaused, gameState.difficulty, spawnObstacles]);
+  }, [gameState.isPlaying, gameState.isPaused, gameState.difficulty, gameState.terraStorm.active, spawnObstacles]);
 
-  // Terra storm spawner (every 2 minutes as per BA doc, but we'll do 30s for gameplay)
+  // Terra storm spawner (first after 20 seconds, then every 30 seconds)
   useEffect(() => {
     if (!gameState.isPlaying || gameState.isPaused) {
       if (stormTimerRef.current) {
@@ -624,7 +669,6 @@ export const useGameState = () => {
       return;
     }
 
-    // First storm after 20 seconds, then every 30 seconds
     const initialDelay = setTimeout(() => {
       triggerTerraStorm();
       
@@ -722,7 +766,10 @@ export const useGameState = () => {
     }
   }, [gameState.selectedShip, startGame]);
 
+  // Toggle hitbox debug - only available in debug mode
   const toggleHitboxDebug = useCallback(() => {
+    if (!DEBUG_MODE) return; // No-op in production
+    
     setGameState(prev => ({
       ...prev,
       showHitboxes: !prev.showHitboxes,
@@ -742,7 +789,8 @@ export const useGameState = () => {
     restartGame,
     endGame,
     setSoundCallbacks,
-    toggleHitboxDebug,
+    toggleHitboxDebug: DEBUG_MODE ? toggleHitboxDebug : undefined, // Only expose in debug mode
     hitboxConfig: HITBOX_CONFIG,
+    isDebugMode: DEBUG_MODE,
   };
 };
