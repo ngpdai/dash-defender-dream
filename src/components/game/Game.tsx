@@ -22,7 +22,8 @@ const Game = () => {
     restartGame,
     setSoundCallbacks,
     toggleHitboxDebug,
-    hitboxConfig,
+    getDebugInfo,
+    collisionConfig,
     isDebugMode,
   } = useGameState();
 
@@ -105,7 +106,8 @@ const Game = () => {
             onStart={handleStart}
             onMoveSound={playMoveSound}
             onToggleHitboxDebug={toggleHitboxDebug}
-            hitboxConfig={hitboxConfig}
+            getDebugInfo={getDebugInfo}
+            collisionConfig={collisionConfig}
             isDebugMode={isDebugMode}
           />
         )}

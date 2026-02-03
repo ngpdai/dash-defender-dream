@@ -1,35 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm, HitboxConfig } from '@/types/game';
+import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm } from '@/types/game';
+import { 
+  LANES, 
+  checkEntityCollision as checkCollisionSystem, 
+  EntityType,
+  getColliderSize,
+  getDebugInfo,
+  COLLISION_CONFIG,
+} from '@/lib/collision';
 
 // Debug flag - set to false for production builds
 const DEBUG_MODE = import.meta.env.DEV;
 
 // Invincibility time after getting hit (in ms)
 const INVINCIBILITY_DURATION = 1500;
-
-// Fixed lane positions (X-axis) based on a 5-lane grid system
-// Lanes are evenly distributed across the playable area (15% to 85%)
-const LANES = {
-  positions: [17, 32, 50, 68, 83], // 5 lanes: far-left, left, center, right, far-right
-  count: 5,
-};
-
-// Hitbox configurations - sizes are in PIXELS to match visual sprites exactly
-// Visual sprite sizes: w-10=40px, w-8=32px, w-12=48px, h-14=56px, h-16=64px
-// Hitbox = 90% of visual size for "forgiving" but fair collision
-const HITBOX_CONFIG: Record<string, HitboxConfig> = {
-  // Ships - hitbox is 90% of visual size
-  speeder: { width: 36, height: 50 },    // Visual: w-10 h-14 (40x56px), Hitbox: 90% = 36x50px
-  tank: { width: 43, height: 58 },       // Visual: w-12 h-16 (48x64px), Hitbox: 90% = 43x58px
-  
-  // Obstacles - hitbox is 90% of visual sprite size (rectangular box colliders)
-  asteroid: { width: 36, height: 36 },   // Visual: w-10 h-10 (40x40px), Hitbox: 90% = 36x36px
-  debris: { width: 29, height: 29 },     // Visual: w-8 h-8 (32x32px), Hitbox: 90% = 29x29px
-  mine: { width: 29, height: 29 },       // Visual: w-8 h-8 (32x32px), Hitbox: 90% = 29x29px
-  
-  // Sudden entities (UFO)
-  ufo: { width: 43, height: 43 },        // Visual: w-12 h-12 (48x48px), Hitbox: 90% = 43x43px
-};
 
 const SHIPS: Record<ShipType, Ship> = {
   speeder: {
@@ -209,17 +193,6 @@ export const useGameState = () => {
     return 1 + Math.floor(gameTime / 60) * 0.2;
   }, []);
 
-  // Get random lane position (ensures obstacles spawn on fixed lanes)
-  const getRandomLane = useCallback((excludeLanes: number[] = []): number => {
-    const availableLanes = LANES.positions.filter(lane => 
-      !excludeLanes.some(excluded => Math.abs(excluded - lane) < 10)
-    );
-    if (availableLanes.length === 0) {
-      return LANES.positions[Math.floor(Math.random() * LANES.count)];
-    }
-    return availableLanes[Math.floor(Math.random() * availableLanes.length)];
-  }, []);
-
   const spawnObstacles = useCallback(() => {
     setGameState(prev => {
       const densityMultiplier = getDensityMultiplier(prev.gameTime);
@@ -240,8 +213,11 @@ export const useGameState = () => {
         const types: Obstacle['type'][] = ['asteroid', 'debris', 'mine'];
         const type = types[Math.floor(Math.random() * types.length)];
         
-        // Get a random lane that isn't already used
-        const laneX = getRandomLane(usedLanes);
+        // Get collider size from collision system for consistent sizing
+        const colliderSize = getColliderSize(type as EntityType);
+        
+        // Get a random lane that isn't already used (using collision system's LANES)
+        const laneX = LANES.getRandom(usedLanes);
         usedLanes.push(laneX);
         
         // Stagger Y positions slightly for more dynamic patterns
@@ -249,10 +225,10 @@ export const useGameState = () => {
         
         const obstacle: Obstacle = {
           id: `obs-${Date.now()}-${Math.random()}-${i}`,
-          x: laneX,
-          y: -10 - yOffset,
-          width: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
-          height: type === 'asteroid' ? 12 : type === 'mine' ? 8 : 10,
+          x: laneX,             // LANE-SNAPPED X position
+          y: -10 - yOffset,     // Start above screen
+          width: colliderSize.width,   // From collision system
+          height: colliderSize.height, // From collision system
           type,
         };
         
@@ -262,14 +238,13 @@ export const useGameState = () => {
       // Occasionally spawn side-coming debris (from left or right)
       if (Math.random() < 0.25 * effectiveDensity) {
         const fromLeft = Math.random() > 0.5;
-        // Side debris targets a random lane
-        const targetLane = getRandomLane();
+        const debrisSize = getColliderSize('debris');
         const sideObstacle: Obstacle = {
           id: `obs-side-${Date.now()}-${Math.random()}`,
           x: fromLeft ? -10 : 110,
-          y: 30 + Math.random() * 30, // Middle area of screen (lane-like Y positioning)
-          width: 10,
-          height: 10,
+          y: 30 + Math.random() * 30, // Middle area of screen
+          width: debrisSize.width,
+          height: debrisSize.height,
           type: 'debris',
           direction: fromLeft ? 'right' : 'left',
         };
@@ -281,13 +256,13 @@ export const useGameState = () => {
         obstacles: [...prev.obstacles, ...newObstacles],
       };
     });
-  }, [getDensityMultiplier, getRandomLane]);
+  }, [getDensityMultiplier]);
 
   const spawnSuddenEntity = useCallback(() => {
     onIncomingRef.current();
     
-    // Spawn on a random lane (behind player)
-    const laneX = getRandomLane();
+    // Spawn on a random lane (behind player) - using collision system's LANES
+    const laneX = LANES.getRandom();
     
     const entity: SuddenEntity = {
       id: `entity-${Date.now()}-${Math.random()}`,
@@ -301,7 +276,7 @@ export const useGameState = () => {
       ...prev,
       suddenEntities: [...prev.suddenEntities, entity],
     }));
-  }, [getRandomLane]);
+  }, []);
 
   const triggerTerraStorm = useCallback(() => {
     onStormRef.current();
@@ -330,73 +305,30 @@ export const useGameState = () => {
     }, 5000);
   }, []);
 
-  // Reference game area size for coordinate conversion
-  // Using consistent reference: 400px width, 600px height
-  const GAME_AREA_REF = { width: 400, height: 600 };
-
-  // Convert pixel hitbox to percentage based on reference game area
-  const pixelToPercentX = useCallback((pixels: number): number => {
-    return (pixels / GAME_AREA_REF.width) * 100;
+  // Collision detection using the unified collision system
+  // Uses CENTER-CENTER anchor and same coordinate system as rendering
+  const checkCollision = useCallback((
+    playerPos: { x: number; y: number }, 
+    obstacle: Obstacle, 
+    shipType: ShipType | null
+  ): boolean => {
+    // Use the collision system's unified function
+    const playerType: EntityType = shipType || 'speeder';
+    const obstacleType: EntityType = obstacle.type;
+    
+    return checkCollisionSystem(playerPos, playerType, obstacle, obstacleType);
   }, []);
-  
-  const pixelToPercentY = useCallback((pixels: number): number => {
-    return (pixels / GAME_AREA_REF.height) * 100;
+
+  const checkSuddenEntityCollision = useCallback((
+    playerPos: { x: number; y: number }, 
+    entity: SuddenEntity, 
+    shipType: ShipType | null
+  ): boolean => {
+    // Use the collision system's unified function
+    const playerType: EntityType = shipType || 'speeder';
+    
+    return checkCollisionSystem(playerPos, playerType, entity, 'ufo');
   }, []);
-
-  // Box collision detection - both hitboxes use same coordinate system (percentages)
-  const checkCollision = useCallback((playerPos: { x: number; y: number }, obstacle: Obstacle, shipType: ShipType | null): boolean => {
-    // Get hitbox configs based on ship and obstacle type (in pixels)
-    const shipHitbox = shipType ? HITBOX_CONFIG[shipType] : HITBOX_CONFIG.speeder;
-    const obsHitbox = HITBOX_CONFIG[obstacle.type] || { width: 36, height: 36 };
-    
-    // Convert pixel hitboxes to percentage of game area
-    const shipWidthPercent = pixelToPercentX(shipHitbox.width);
-    const shipHeightPercent = pixelToPercentY(shipHitbox.height);
-    const obsWidthPercent = pixelToPercentX(obsHitbox.width);
-    const obsHeightPercent = pixelToPercentY(obsHitbox.height);
-    
-    // Player hitbox - centered on position (anchor 0.5, 0.5)
-    const playerLeft = playerPos.x - shipWidthPercent / 2;
-    const playerRight = playerPos.x + shipWidthPercent / 2;
-    const playerTop = playerPos.y - shipHeightPercent / 2;
-    const playerBottom = playerPos.y + shipHeightPercent / 2;
-
-    // Obstacle hitbox - centered on position (anchor 0.5, 0.5)
-    const obsLeft = obstacle.x - obsWidthPercent / 2;
-    const obsRight = obstacle.x + obsWidthPercent / 2;
-    const obsTop = obstacle.y - obsHeightPercent / 2;
-    const obsBottom = obstacle.y + obsHeightPercent / 2;
-
-    // AABB collision detection (axis-aligned bounding box)
-    return !(playerRight < obsLeft || playerLeft > obsRight || playerBottom < obsTop || playerTop > obsBottom);
-  }, [pixelToPercentX, pixelToPercentY]);
-
-  const checkEntityCollision = useCallback((playerPos: { x: number; y: number }, entity: SuddenEntity, shipType: ShipType | null): boolean => {
-    // Get hitbox configs (in pixels)
-    const shipHitbox = shipType ? HITBOX_CONFIG[shipType] : HITBOX_CONFIG.speeder;
-    const entityHitbox = HITBOX_CONFIG.ufo;
-    
-    // Convert pixel hitboxes to percentage of game area
-    const shipWidthPercent = pixelToPercentX(shipHitbox.width);
-    const shipHeightPercent = pixelToPercentY(shipHitbox.height);
-    const entityWidthPercent = pixelToPercentX(entityHitbox.width);
-    const entityHeightPercent = pixelToPercentY(entityHitbox.height);
-    
-    // Player hitbox - centered on position (anchor 0.5, 0.5)
-    const playerLeft = playerPos.x - shipWidthPercent / 2;
-    const playerRight = playerPos.x + shipWidthPercent / 2;
-    const playerTop = playerPos.y - shipHeightPercent / 2;
-    const playerBottom = playerPos.y + shipHeightPercent / 2;
-
-    // Entity hitbox - centered on position (anchor 0.5, 0.5)
-    const entityLeft = entity.x - entityWidthPercent / 2;
-    const entityRight = entity.x + entityWidthPercent / 2;
-    const entityTop = entity.y - entityHeightPercent / 2;
-    const entityBottom = entity.y + entityHeightPercent / 2;
-
-    // AABB collision detection
-    return !(playerRight < entityLeft || playerLeft > entityRight || playerBottom < entityTop || playerTop > entityBottom);
-  }, [pixelToPercentX, pixelToPercentY]);
 
   const endGame = useCallback(() => {
     setGameState(prev => {
@@ -538,7 +470,7 @@ export const useGameState = () => {
         // Check entity collisions
         let hitEntity = false;
         updatedEntities = updatedEntities.filter(entity => {
-          if (!entity.isExploding && checkEntityCollision(prev.playerPosition, entity, prev.selectedShip)) {
+          if (!entity.isExploding && checkSuddenEntityCollision(prev.playerPosition, entity, prev.selectedShip)) {
             hitEntity = true;
             onExplosionRef.current();
             return false;
@@ -633,7 +565,7 @@ export const useGameState = () => {
         cancelAnimationFrame(gameLoopRef.current);
       }
     };
-  }, [gameState.isPlaying, gameState.isPaused, checkCollision, checkEntityCollision]);
+  }, [gameState.isPlaying, gameState.isPaused, checkCollision, checkSuddenEntityCollision]);
 
   // Obstacle spawner - spawn rate synchronized with difficulty
   useEffect(() => {
@@ -789,8 +721,10 @@ export const useGameState = () => {
     restartGame,
     endGame,
     setSoundCallbacks,
-    toggleHitboxDebug: DEBUG_MODE ? toggleHitboxDebug : undefined, // Only expose in debug mode
-    hitboxConfig: HITBOX_CONFIG,
+    toggleHitboxDebug: DEBUG_MODE ? toggleHitboxDebug : undefined,
+    // Export collision system utilities for debug visualization
+    getDebugInfo,
+    collisionConfig: COLLISION_CONFIG,
     isDebugMode: DEBUG_MODE,
   };
 };
