@@ -4,6 +4,9 @@ import { Heart, Shield, Gauge, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup, HitboxConfig } from '@/types/game';
 import { AsteroidVisual, UFOVisual, TitanShip, SpeederShip } from './GameVisuals';
 
+// Debug mode flag - matches useGameState
+const DEBUG_MODE = import.meta.env.DEV;
+
 interface GameScreenProps {
   gameState: GameState;
   shipData: Ship | null;
@@ -12,6 +15,7 @@ interface GameScreenProps {
   onMoveSound?: () => void;
   onToggleHitboxDebug?: () => void;
   hitboxConfig?: Record<string, HitboxConfig>;
+  isDebugMode?: boolean;
 }
 
 // Hitbox debug overlay component - now uses PIXELS for accurate sizing
@@ -230,10 +234,13 @@ const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
   );
 };
 
-const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, hitboxConfig }: GameScreenProps) => {
+const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, hitboxConfig, isDebugMode = false }: GameScreenProps) => {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showStartPrompt, setShowStartPrompt] = useState(true);
+  
+  // Only show debug features if both debug mode is enabled AND we're in dev environment
+  const canShowDebug = isDebugMode && DEBUG_MODE;
 
   // Keyboard controls
   useEffect(() => {
@@ -379,8 +386,8 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
             </span>
           </div>
           
-          {/* Debug Hitbox Toggle */}
-          {onToggleHitboxDebug && (
+          {/* Debug Hitbox Toggle - Only visible in debug mode */}
+          {canShowDebug && onToggleHitboxDebug && (
             <button
               onClick={onToggleHitboxDebug}
               className={`flex items-center gap-1 px-2 py-1 rounded border transition-colors ${
@@ -388,13 +395,14 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
                   ? 'bg-destructive/20 border-destructive/50 text-destructive' 
                   : 'bg-muted/20 border-muted/30 text-muted-foreground'
               }`}
-              title="Toggle hitbox debug view"
+              title="Toggle hitbox debug view (DEV ONLY)"
             >
               {gameState.showHitboxes ? (
                 <EyeOff className="w-4 h-4" />
               ) : (
                 <Eye className="w-4 h-4" />
               )}
+              <span className="text-xs ml-1">DEV</span>
             </button>
           )}
         </div>
@@ -475,8 +483,8 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
           </div>
         </motion.div>
         
-        {/* Player Ship Hitbox Debug */}
-        {gameState.showHitboxes && hitboxConfig && shipData && (
+        {/* Player Ship Hitbox Debug - Only in debug mode */}
+        {canShowDebug && gameState.showHitboxes && hitboxConfig && shipData && (
           <HitboxOverlay 
             x={gameState.playerPosition.x} 
             y={gameState.playerPosition.y} 
@@ -491,7 +499,7 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
           <ObstacleComponent 
             key={obstacle.id} 
             obstacle={obstacle} 
-            showHitbox={gameState.showHitboxes}
+            showHitbox={canShowDebug && gameState.showHitboxes}
             hitboxConfig={hitboxConfig}
           />
         ))}
@@ -501,7 +509,7 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
           <SuddenEntityComponent 
             key={entity.id} 
             entity={entity}
-            showHitbox={gameState.showHitboxes}
+            showHitbox={canShowDebug && gameState.showHitboxes}
             hitboxConfig={hitboxConfig}
           />
         ))}
