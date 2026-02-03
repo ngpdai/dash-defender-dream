@@ -1,8 +1,14 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Shield, Gauge, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup, HitboxConfig } from '@/types/game';
+import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup } from '@/types/game';
 import { AsteroidVisual, UFOVisual, TitanShip, SpeederShip } from './GameVisuals';
+import { 
+  EntityType, 
+  CollisionDebugInfo, 
+  getDebugInfo as getDebugInfoFn,
+  COLLISION_CONFIG,
+} from '@/lib/collision';
 
 // Debug mode flag - matches useGameState
 const DEBUG_MODE = import.meta.env.DEV;
@@ -14,75 +20,69 @@ interface GameScreenProps {
   onStart: () => void;
   onMoveSound?: () => void;
   onToggleHitboxDebug?: () => void;
-  hitboxConfig?: Record<string, HitboxConfig>;
+  getDebugInfo?: (x: number, y: number, entityType: EntityType) => CollisionDebugInfo;
+  collisionConfig?: typeof COLLISION_CONFIG;
   isDebugMode?: boolean;
 }
 
-// Hitbox debug overlay component - now uses PIXELS for accurate sizing
+/**
+ * Hitbox Debug Overlay
+ * Shows both visual sprite bounds and collision bounds
+ * Uses CENTER-CENTER anchor (same as collision system)
+ */
 const HitboxOverlay = ({ 
-  x, y, width, height, color = 'red', showCenterMarker = true 
-}: { x: number; y: number; width: number; height: number; color?: string; showCenterMarker?: boolean }) => (
+  debugInfo,
+  color = 'red',
+}: { 
+  debugInfo: CollisionDebugInfo;
+  color?: string;
+}) => (
   <>
-    {/* Hitbox rectangle - pixel-based sizing */}
+    {/* Collider bounds (what the game uses for collision) */}
     <div
       className="absolute pointer-events-none"
       style={{
-        left: `${x}%`,
-        top: `${y}%`,
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: 'translate(-50%, -50%)', // Center on position
+        left: `${debugInfo.collider.left}%`,
+        top: `${debugInfo.collider.top}%`,
+        width: `${debugInfo.collider.right - debugInfo.collider.left}%`,
+        height: `${debugInfo.collider.bottom - debugInfo.collider.top}%`,
         border: `2px solid ${color}`,
         backgroundColor: `${color}20`,
-        borderRadius: '4px',
+        borderRadius: '2px',
         zIndex: 100,
       }}
-    >
-      {/* Center marker for hitbox (yellow +) */}
-      {showCenterMarker && (
-        <>
-          <div 
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-0.5 bg-yellow-400"
-            style={{ boxShadow: '0 0 4px yellow' }}
-          />
-          <div 
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-3 bg-yellow-400"
-            style={{ boxShadow: '0 0 4px yellow' }}
-          />
-        </>
-      )}
-    </div>
+    />
     
-    {/* Sprite center marker (cyan +) - should overlap with yellow if aligned correctly */}
-    {showCenterMarker && (
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          left: `${x}%`,
-          top: `${y}%`,
-          transform: 'translate(-50%, -50%)',
-          zIndex: 101,
-        }}
-      >
-        <div 
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-0.5 bg-cyan-400"
-          style={{ boxShadow: '0 0 6px cyan' }}
-        />
-        <div 
-          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-4 bg-cyan-400"
-          style={{ boxShadow: '0 0 6px cyan' }}
-        />
-      </div>
-    )}
+    {/* Center marker - cyan cross at entity center */}
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        left: `${debugInfo.center.x}%`,
+        top: `${debugInfo.center.y}%`,
+        transform: 'translate(-50%, -50%)',
+        zIndex: 101,
+      }}
+    >
+      <div 
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-0.5 bg-cyan-400"
+        style={{ boxShadow: '0 0 4px cyan' }}
+      />
+      <div 
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-3 bg-cyan-400"
+        style={{ boxShadow: '0 0 4px cyan' }}
+      />
+    </div>
   </>
 );
 
-const ObstacleComponent = ({ obstacle, showHitbox, hitboxConfig }: { 
+const ObstacleComponent = ({ obstacle, showHitbox, getDebugInfo }: { 
   obstacle: Obstacle; 
   showHitbox?: boolean;
-  hitboxConfig?: Record<string, HitboxConfig>;
+  getDebugInfo?: (x: number, y: number, entityType: EntityType) => CollisionDebugInfo;
 }) => {
-  const hitbox = hitboxConfig?.[obstacle.type];
+  const debugInfo = showHitbox && getDebugInfo 
+    ? getDebugInfo(obstacle.x, obstacle.y, obstacle.type as EntityType) 
+    : null;
   
   return (
     <>
@@ -98,12 +98,9 @@ const ObstacleComponent = ({ obstacle, showHitbox, hitboxConfig }: {
       >
         <AsteroidVisual type={obstacle.type} />
       </motion.div>
-      {showHitbox && hitbox && (
+      {showHitbox && debugInfo && (
         <HitboxOverlay 
-          x={obstacle.x} 
-          y={obstacle.y} 
-          width={hitbox.width} 
-          height={hitbox.height}
+          debugInfo={debugInfo}
           color="orange"
         />
       )}
@@ -111,14 +108,16 @@ const ObstacleComponent = ({ obstacle, showHitbox, hitboxConfig }: {
   );
 };
 
-const SuddenEntityComponent = ({ entity, showHitbox, hitboxConfig }: { 
+const SuddenEntityComponent = ({ entity, showHitbox, getDebugInfo }: { 
   entity: SuddenEntity;
   showHitbox?: boolean;
-  hitboxConfig?: Record<string, HitboxConfig>;
+  getDebugInfo?: (x: number, y: number, entityType: EntityType) => CollisionDebugInfo;
 }) => {
   const timeSinceSpawn = Date.now() - entity.spawnTime;
   const isWarning = timeSinceSpawn > 2000; // Flash warning in last second
-  const hitbox = hitboxConfig?.ufo;
+  const debugInfo = showHitbox && getDebugInfo
+    ? getDebugInfo(entity.x, entity.y, 'ufo')
+    : null;
 
   // Don't render if exploding (removed explosion visual)
   if (entity.isExploding) return null;
@@ -143,12 +142,9 @@ const SuddenEntityComponent = ({ entity, showHitbox, hitboxConfig }: {
       >
         <UFOVisual isExploding={entity.isExploding} />
       </motion.div>
-      {showHitbox && hitbox && (
+      {showHitbox && debugInfo && (
         <HitboxOverlay 
-          x={entity.x} 
-          y={entity.y} 
-          width={hitbox.width} 
-          height={hitbox.height}
+          debugInfo={debugInfo}
           color="purple"
         />
       )}
@@ -234,7 +230,7 @@ const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
   );
 };
 
-const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, hitboxConfig, isDebugMode = false }: GameScreenProps) => {
+const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, getDebugInfo, collisionConfig, isDebugMode = false }: GameScreenProps) => {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showStartPrompt, setShowStartPrompt] = useState(true);
@@ -484,12 +480,9 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
         </motion.div>
         
         {/* Player Ship Hitbox Debug - Only in debug mode */}
-        {canShowDebug && gameState.showHitboxes && hitboxConfig && shipData && (
+        {canShowDebug && gameState.showHitboxes && getDebugInfo && shipData && (
           <HitboxOverlay 
-            x={gameState.playerPosition.x} 
-            y={gameState.playerPosition.y} 
-            width={hitboxConfig[shipData.id]?.width || 36} 
-            height={hitboxConfig[shipData.id]?.height || 50}
+            debugInfo={getDebugInfo(gameState.playerPosition.x, gameState.playerPosition.y, shipData.id as EntityType)}
             color="lime"
           />
         )}
@@ -500,7 +493,7 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
             key={obstacle.id} 
             obstacle={obstacle} 
             showHitbox={canShowDebug && gameState.showHitboxes}
-            hitboxConfig={hitboxConfig}
+            getDebugInfo={getDebugInfo}
           />
         ))}
 
@@ -510,7 +503,7 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
             key={entity.id} 
             entity={entity}
             showHitbox={canShowDebug && gameState.showHitboxes}
-            hitboxConfig={hitboxConfig}
+            getDebugInfo={getDebugInfo}
           />
         ))}
 
