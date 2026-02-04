@@ -79,6 +79,20 @@ const VISUAL_SIZES_PX: Record<EntityType, { width: number; height: number }> = {
 const COLLIDER_SCALE = 0.85;
 
 /**
+ * Hitbox offset for obstacles (to align with visual center)
+ * Positive X = shift right, Positive Y = shift down
+ * Values are in percentage of game area
+ */
+const HITBOX_OFFSET: Record<EntityType, { x: number; y: number }> = {
+  speeder: { x: 0, y: 0 },
+  tank: { x: 0, y: 0 },
+  asteroid: { x: 2, y: 0 },   // Shift 2% to the right
+  debris: { x: 2, y: 0 },     // Shift 2% to the right
+  mine: { x: 2, y: 0 },       // Shift 2% to the right
+  ufo: { x: 0, y: 0 },
+};
+
+/**
  * Convert pixel size to percentage of game area
  */
 export function pixelToPercent(pixels: number, dimension: 'width' | 'height'): number {
@@ -119,12 +133,15 @@ export function getVisualSize(entityType: EntityType): { width: number; height: 
 /**
  * Create a Transform from position and entity type
  * This is the SINGLE SOURCE OF TRUTH - both rendering and collision use this
+ * Applies hitbox offset for alignment with visual sprites
  */
 export function createTransform(x: number, y: number, entityType: EntityType): Transform {
   const size = getColliderSize(entityType);
+  const offset = HITBOX_OFFSET[entityType];
+  
   return {
-    x,
-    y,
+    x: x + offset.x,  // Apply horizontal offset
+    y: y + offset.y,  // Apply vertical offset
     width: size.width,
     height: size.height,
   };
