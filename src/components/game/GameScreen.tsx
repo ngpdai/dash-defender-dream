@@ -86,18 +86,22 @@ const ObstacleComponent = ({ obstacle, showHitbox, getDebugInfo }: {
   
   return (
     <>
-      <motion.div
-        initial={{ y: '-50px', opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
+      {/* Wrapper positioned at obstacle center, then inner div for centering */}
+      <div
         className="absolute"
         style={{
           left: `${obstacle.x}%`,
           top: `${obstacle.y}%`,
-          transform: 'translate(-50%, -50%)',
         }}
       >
-        <AsteroidVisual type={obstacle.type} />
-      </motion.div>
+        <motion.div
+          initial={{ y: -50, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="transform -translate-x-1/2 -translate-y-1/2"
+        >
+          <AsteroidVisual type={obstacle.type} />
+        </motion.div>
+      </div>
       {showHitbox && debugInfo && (
         <HitboxOverlay 
           debugInfo={debugInfo}
@@ -124,24 +128,26 @@ const SuddenEntityComponent = ({ entity, showHitbox, getDebugInfo }: {
 
   return (
     <>
-      <motion.div
-        initial={{ y: '50px', scale: 0.5, opacity: 0 }}
-        animate={{ 
-          y: 0, 
-          scale: 1, 
-          opacity: 1,
-        }}
-        transition={{ duration: 0.2 }}
-        className={`absolute ${isWarning ? 'animate-pulse' : ''}`}
+      {/* Wrapper positioned at entity center, then inner div for centering */}
+      <div
+        className="absolute"
         style={{
           left: `${entity.x}%`,
           top: `${entity.y}%`,
-          transform: 'translate(-50%, -50%)',
-          filter: isWarning ? 'drop-shadow(0 0 10px hsl(var(--destructive)))' : 'none',
         }}
       >
-        <UFOVisual isExploding={entity.isExploding} />
-      </motion.div>
+        <motion.div
+          initial={{ y: 50, scale: 0.5, opacity: 0 }}
+          animate={{ y: 0, scale: 1, opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className={`transform -translate-x-1/2 -translate-y-1/2 ${isWarning ? 'animate-pulse' : ''}`}
+          style={{
+            filter: isWarning ? 'drop-shadow(0 0 10px hsl(var(--destructive)))' : 'none',
+          }}
+        >
+          <UFOVisual isExploding={entity.isExploding} />
+        </motion.div>
+      </div>
       {showHitbox && debugInfo && (
         <HitboxOverlay 
           debugInfo={debugInfo}
