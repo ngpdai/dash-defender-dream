@@ -9,8 +9,8 @@ import {
   COLLISION_CONFIG,
 } from '@/lib/collision';
 
-// Debug flag - set to false for production builds
-const DEBUG_MODE = import.meta.env.DEV;
+// Debug flag - temporarily enabled to show hitboxes
+const DEBUG_MODE = true;
 
 // Invincibility time after getting hit (in ms)
 const INVINCIBILITY_DURATION = 1500;
