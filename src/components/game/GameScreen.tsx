@@ -10,8 +10,8 @@ import {
   COLLISION_CONFIG,
 } from '@/lib/collision';
 
-// Debug mode flag - matches useGameState
-const DEBUG_MODE = import.meta.env.DEV;
+// Debug mode flag - temporarily enabled to show hitboxes
+const DEBUG_MODE = true;
 
 interface GameScreenProps {
   gameState: GameState;
