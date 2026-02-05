@@ -69,13 +69,14 @@ const VISUAL_SIZES_PX: Record<EntityType, { width: number; height: number }> = {
 };
 
 /**
- * Collider scale factor - collider is 68% of visual size (reduced 20% from 85%)
- * This makes collision more "forgiving":
+ * Collider scale factor - collider is ~48% of visual size (reduced 30% from 68%)
+ * This makes collision very "forgiving":
  * - 100% = pixel-perfect (too harsh)
  * - 85% = original setting
- * - 68% = current setting (20% smaller than original)
+ * - 68% = previous setting
+ * - 48% = current setting (30% smaller than 68%)
  */
-const COLLIDER_SCALE = 0.68;
+const COLLIDER_SCALE = 0.48;
 
 /**
  * Hitbox offset for obstacles (to align with visual center)
