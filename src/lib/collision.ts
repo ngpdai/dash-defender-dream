@@ -93,7 +93,7 @@ const HITBOX_OFFSET: Record<EntityType, { x: number; y: number }> = {
   asteroid: { x: 2, y: 0 },   // Shift 2% to the right
   debris: { x: 2, y: 0 },     // Shift 2% to the right
   mine: { x: 2, y: 0 },       // Shift 2% to the right
-  ufo: { x: 0, y: 0 },
+  ufo: { x: 2, y: 0 },        // Shift 2% to the right
 };
 
 /**

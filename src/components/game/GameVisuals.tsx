@@ -192,16 +192,14 @@ export const AsteroidVisual = ({ type }: { type: 'asteroid' | 'debris' | 'mine' 
   );
 };
 
-// UFO Enemy - Alien ship with rotation effect
+// UFO Enemy - Alien ship
 export const UFOVisual = ({ isExploding }: { isExploding: boolean }) => {
   if (isExploding) {
     return null; // Remove explosion visual as requested
   }
 
   return (
-    <motion.div
-      animate={{ rotate: 360 }}
-      transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+    <div
       className="relative w-12 h-12"
     >
       {/* UFO body */}
@@ -245,7 +243,7 @@ export const UFOVisual = ({ isExploding }: { isExploding: boolean }) => {
       
       {/* Outer glow */}
       <div className="absolute inset-0 rounded-full blur-lg bg-purple-500/30 -z-10" />
-    </motion.div>
+    </div>
   );
 };
 
