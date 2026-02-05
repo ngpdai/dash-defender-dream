@@ -69,14 +69,18 @@ const VISUAL_SIZES_PX: Record<EntityType, { width: number; height: number }> = {
 };
 
 /**
- * Collider scale factor - collider is ~48% of visual size (reduced 30% from 68%)
- * This makes collision very "forgiving":
- * - 100% = pixel-perfect (too harsh)
- * - 85% = original setting
- * - 68% = previous setting
- * - 48% = current setting (30% smaller than 68%)
+ * Collider scale factors per entity category
+ * Base: 48% of visual size
+ * Ships & Obstacles: additional 20% reduction = 38%
  */
-const COLLIDER_SCALE = 0.48;
+const COLLIDER_SCALES: Record<EntityType, number> = {
+  speeder: 0.38,   // Ship: 48% * 0.80 = 38%
+  tank: 0.38,      // Ship: 48% * 0.80 = 38%
+  asteroid: 0.38,  // Obstacle: 48% * 0.80 = 38%
+  debris: 0.38,    // Obstacle: 48% * 0.80 = 38%
+  mine: 0.38,      // Obstacle: 48% * 0.80 = 38%
+  ufo: 0.48,       // UFO: keep at 48%
+};
 
 /**
  * Hitbox offset for obstacles (to align with visual center)
@@ -106,10 +110,11 @@ export function pixelToPercent(pixels: number, dimension: 'width' | 'height'): n
  */
 export function getColliderSize(entityType: EntityType): { width: number; height: number } {
   const visual = VISUAL_SIZES_PX[entityType];
+  const scale = COLLIDER_SCALES[entityType];
   
-  // Apply collider scale for fairness
-  const colliderWidth = visual.width * COLLIDER_SCALE;
-  const colliderHeight = visual.height * COLLIDER_SCALE;
+  // Apply entity-specific collider scale
+  const colliderWidth = visual.width * scale;
+  const colliderHeight = visual.height * scale;
   
   // Convert to percentage of game area
   return {
@@ -286,7 +291,7 @@ export function getDebugInfo(x: number, y: number, entityType: EntityType): Coll
  * Export collider scale for external reference
  */
 export const COLLISION_CONFIG = {
-  colliderScale: COLLIDER_SCALE,
+  colliderScales: COLLIDER_SCALES,
   gameArea: GAME_AREA,
   visualSizes: VISUAL_SIZES_PX,
 };
