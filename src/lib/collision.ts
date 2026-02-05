@@ -70,16 +70,25 @@ const VISUAL_SIZES_PX: Record<EntityType, { width: number; height: number }> = {
 
 /**
  * Collider scale factors per entity category
- * Base: 48% of visual size
- * Ships & Obstacles: additional 20% reduction = 38%
+ * Ships: 38% width, taller height (will be handled separately)
+ * All obstacles (including UFO): 48% of visual size
  */
 const COLLIDER_SCALES: Record<EntityType, number> = {
-  speeder: 0.38,   // Ship: 48% * 0.80 = 38%
-  tank: 0.38,      // Ship: 48% * 0.80 = 38%
-  asteroid: 0.38,  // Obstacle: 48% * 0.80 = 38%
-  debris: 0.38,    // Obstacle: 48% * 0.80 = 38%
-  mine: 0.38,      // Obstacle: 48% * 0.80 = 38%
-  ufo: 0.48,       // UFO: keep at 48%
+  speeder: 0.38,   // Ship: smaller width hitbox
+  tank: 0.38,      // Ship: smaller width hitbox
+  asteroid: 0.48,  // Obstacle: standard 48%
+  debris: 0.48,    // Obstacle: standard 48%
+  mine: 0.48,      // Obstacle: standard 48%
+  ufo: 0.48,       // Obstacle: standard 48%
+};
+
+/**
+ * Separate height scale for ships (taller hitbox)
+ * Ships use different height scale than width for better gameplay feel
+ */
+const SHIP_HEIGHT_SCALE: Record<'speeder' | 'tank', number> = {
+  speeder: 0.55,   // Taller hitbox for ships
+  tank: 0.55,      // Taller hitbox for ships
 };
 
 /**
@@ -112,9 +121,13 @@ export function getColliderSize(entityType: EntityType): { width: number; height
   const visual = VISUAL_SIZES_PX[entityType];
   const scale = COLLIDER_SCALES[entityType];
   
-  // Apply entity-specific collider scale
+  // Ships use separate height scale for taller hitbox
+  const heightScale = (entityType === 'speeder' || entityType === 'tank') 
+    ? SHIP_HEIGHT_SCALE[entityType] 
+    : scale;
+  
   const colliderWidth = visual.width * scale;
-  const colliderHeight = visual.height * scale;
+  const colliderHeight = visual.height * heightScale;
   
   // Convert to percentage of game area
   return {
