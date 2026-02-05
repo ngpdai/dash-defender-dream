@@ -13,7 +13,7 @@ export const TitanShip = ({ isInvincible }: { isInvincible?: boolean }) => (
       y: { duration: 0.5, repeat: Infinity },
       scale: isInvincible ? { duration: 0.15, repeat: Infinity } : { duration: 0 },
     }}
-    className="relative w-12 h-14 md:w-14 md:h-16"
+    className="relative w-24 h-28 md:w-28 md:h-32"
   >
     <img 
       src={titanShipImg} 
@@ -34,7 +34,7 @@ export const SpeederShip = ({ isInvincible }: { isInvincible?: boolean }) => (
       y: { duration: 0.5, repeat: Infinity },
       scale: isInvincible ? { duration: 0.15, repeat: Infinity } : { duration: 0 },
     }}
-    className="relative w-10 h-14 md:w-12 md:h-16"
+    className="relative w-[60px] h-[84px] md:w-[72px] md:h-[96px]"
   >
     <img 
       src={speederShipImg} 
@@ -182,12 +182,12 @@ export const ShipPreview = ({ shipId, color }: { shipId: 'speeder' | 'tank'; col
       <motion.div
         animate={{ y: [0, -8, 0] }}
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative w-20 h-24"
+        className="relative w-[120px] h-[144px]"
       >
         <img 
           src={speederShipImg} 
           alt="Speeder X-1" 
-          className="w-full h-full object-contain scale-150"
+          className="w-full h-full object-contain"
         />
       </motion.div>
     );
@@ -198,12 +198,12 @@ export const ShipPreview = ({ shipId, color }: { shipId: 'speeder' | 'tank'; col
     <motion.div
       animate={{ y: [0, -8, 0] }}
       transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-      className="relative w-24 h-28"
+      className="relative w-48 h-56"
     >
       <img 
         src={titanShipImg} 
         alt="Titan MK-II" 
-        className="w-full h-full object-contain scale-150"
+        className="w-full h-full object-contain"
       />
     </motion.div>
   );
