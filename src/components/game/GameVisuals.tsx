@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion';
+import speederShipImg from '@/assets/speeder-ship.png';
+import titanShipImg from '@/assets/titan-ship.png';
 
 // Titan MK-II - Heavy, sturdy battleship design
 export const TitanShip = ({ isInvincible }: { isInvincible?: boolean }) => (
@@ -13,50 +15,11 @@ export const TitanShip = ({ isInvincible }: { isInvincible?: boolean }) => (
     }}
     className="relative w-12 h-14 md:w-14 md:h-16"
   >
-    {/* Main hull */}
-    <div className="absolute inset-0 flex flex-col items-center">
-      {/* Cockpit */}
-      <div className="w-4 h-3 bg-gradient-to-b from-secondary to-secondary/60 rounded-t-full border border-secondary/80" />
-      
-      {/* Upper body */}
-      <div className="w-8 h-4 bg-gradient-to-b from-secondary/80 to-secondary/40 border-x border-secondary/60" />
-      
-      {/* Main body - wider, more armored look */}
-      <div className="w-10 h-5 bg-gradient-to-b from-secondary/60 to-secondary/30 border border-secondary/50 relative">
-        {/* Armor plating details */}
-        <div className="absolute left-1 top-1 w-1 h-3 bg-secondary/40 rounded-sm" />
-        <div className="absolute right-1 top-1 w-1 h-3 bg-secondary/40 rounded-sm" />
-      </div>
-      
-      {/* Engine section */}
-      <div className="flex gap-1">
-        <div className="w-3 h-2 bg-gradient-to-b from-secondary/50 to-transparent rounded-b" />
-        <div className="w-4 h-3 bg-gradient-to-b from-secondary/60 to-transparent rounded-b" />
-        <div className="w-3 h-2 bg-gradient-to-b from-secondary/50 to-transparent rounded-b" />
-      </div>
-    </div>
-    
-    {/* Engine glow effects */}
-    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 flex gap-1">
-      <motion.div 
-        animate={{ opacity: [0.5, 1, 0.5], scaleY: [1, 1.3, 1] }}
-        transition={{ duration: 0.3, repeat: Infinity }}
-        className="w-2 h-4 bg-gradient-to-b from-secondary via-pink-400 to-transparent rounded-full blur-sm"
-      />
-      <motion.div 
-        animate={{ opacity: [0.7, 1, 0.7], scaleY: [1, 1.5, 1] }}
-        transition={{ duration: 0.25, repeat: Infinity }}
-        className="w-3 h-5 bg-gradient-to-b from-secondary via-pink-300 to-transparent rounded-full blur-sm"
-      />
-      <motion.div 
-        animate={{ opacity: [0.5, 1, 0.5], scaleY: [1, 1.3, 1] }}
-        transition={{ duration: 0.3, repeat: Infinity, delay: 0.1 }}
-        className="w-2 h-4 bg-gradient-to-b from-secondary via-pink-400 to-transparent rounded-full blur-sm"
-      />
-    </div>
-    
-    {/* Neon glow outline */}
-    <div className="absolute inset-0 rounded blur-md bg-secondary/30 -z-10" />
+    <img 
+      src={titanShipImg} 
+      alt="Titan MK-II" 
+      className="w-full h-full object-contain"
+    />
   </motion.div>
 );
 
@@ -73,46 +36,11 @@ export const SpeederShip = ({ isInvincible }: { isInvincible?: boolean }) => (
     }}
     className="relative w-10 h-14 md:w-12 md:h-16"
   >
-    {/* Main body - sleek arrow shape */}
-    <div className="absolute inset-0 flex flex-col items-center">
-      {/* Nose cone */}
-      <div 
-        className="w-0 h-0 border-l-[8px] border-r-[8px] border-b-[12px] border-l-transparent border-r-transparent border-b-primary"
-        style={{ filter: 'drop-shadow(0 0 4px hsl(var(--primary)))' }}
-      />
-      
-      {/* Cockpit */}
-      <div className="w-4 h-3 bg-gradient-to-b from-cyan-300 to-primary rounded-sm border border-primary/80" />
-      
-      {/* Body */}
-      <div className="w-6 h-4 bg-gradient-to-b from-primary/80 to-primary/50 border-x border-primary/60" />
-      
-      {/* Wings */}
-      <div className="flex items-start -mt-2">
-        <div 
-          className="w-0 h-0 border-t-[6px] border-r-[10px] border-t-transparent border-r-primary/70"
-          style={{ transform: 'skewY(-10deg)' }}
-        />
-        <div className="w-4 h-3 bg-gradient-to-b from-primary/60 to-primary/30" />
-        <div 
-          className="w-0 h-0 border-t-[6px] border-l-[10px] border-t-transparent border-l-primary/70"
-          style={{ transform: 'skewY(10deg)' }}
-        />
-      </div>
-      
-      {/* Engine */}
-      <div className="w-3 h-2 bg-gradient-to-b from-primary/50 to-transparent rounded-b" />
-    </div>
-    
-    {/* Engine glow */}
-    <motion.div 
-      animate={{ opacity: [0.6, 1, 0.6], scaleY: [1, 1.4, 1] }}
-      transition={{ duration: 0.2, repeat: Infinity }}
-      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-5 bg-gradient-to-b from-primary via-cyan-300 to-transparent rounded-full blur-sm"
+    <img 
+      src={speederShipImg} 
+      alt="Speeder X-1" 
+      className="w-full h-full object-contain"
     />
-    
-    {/* Neon glow outline */}
-    <div className="absolute inset-0 rounded blur-md bg-primary/30 -z-10" />
   </motion.div>
 );
 
@@ -256,36 +184,11 @@ export const ShipPreview = ({ shipId, color }: { shipId: 'speeder' | 'tank'; col
         transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         className="relative w-20 h-24"
       >
-        <div className="absolute inset-0 flex flex-col items-center scale-150">
-          {/* Nose cone */}
-          <div 
-            className="w-0 h-0 border-l-[12px] border-r-[12px] border-b-[18px] border-l-transparent border-r-transparent border-b-primary"
-            style={{ filter: 'drop-shadow(0 0 6px hsl(var(--primary)))' }}
-          />
-          
-          {/* Cockpit */}
-          <div className="w-6 h-4 bg-gradient-to-b from-cyan-300 to-primary rounded-sm border border-primary/80" />
-          
-          {/* Body */}
-          <div className="w-8 h-5 bg-gradient-to-b from-primary/80 to-primary/50 border-x border-primary/60" />
-          
-          {/* Wings */}
-          <div className="flex items-start -mt-3">
-            <div className="w-0 h-0 border-t-[8px] border-r-[14px] border-t-transparent border-r-primary/70" />
-            <div className="w-5 h-4 bg-gradient-to-b from-primary/60 to-primary/30" />
-            <div className="w-0 h-0 border-t-[8px] border-l-[14px] border-t-transparent border-l-primary/70" />
-          </div>
-        </div>
-        
-        {/* Engine glow */}
-        <motion.div 
-          animate={{ opacity: [0.6, 1, 0.6], scaleY: [1, 1.4, 1] }}
-          transition={{ duration: 0.2, repeat: Infinity }}
-          className="absolute bottom-2 left-1/2 -translate-x-1/2 w-4 h-8 bg-gradient-to-b from-primary via-cyan-300 to-transparent rounded-full blur-md"
+        <img 
+          src={speederShipImg} 
+          alt="Speeder X-1" 
+          className="w-full h-full object-contain scale-150"
         />
-        
-        {/* Glow */}
-        <div className="absolute inset-0 blur-xl bg-primary/20 -z-10" />
       </motion.div>
     );
   }
@@ -297,36 +200,11 @@ export const ShipPreview = ({ shipId, color }: { shipId: 'speeder' | 'tank'; col
       transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
       className="relative w-24 h-28"
     >
-      <div className="absolute inset-0 flex flex-col items-center scale-150">
-        {/* Cockpit */}
-        <div className="w-6 h-4 bg-gradient-to-b from-secondary to-secondary/60 rounded-t-full border border-secondary/80" />
-        
-        {/* Upper body */}
-        <div className="w-10 h-5 bg-gradient-to-b from-secondary/80 to-secondary/40 border-x border-secondary/60" />
-        
-        {/* Main body */}
-        <div className="w-14 h-6 bg-gradient-to-b from-secondary/60 to-secondary/30 border border-secondary/50 relative">
-          <div className="absolute left-1 top-1 w-1.5 h-4 bg-secondary/40 rounded-sm" />
-          <div className="absolute right-1 top-1 w-1.5 h-4 bg-secondary/40 rounded-sm" />
-        </div>
-        
-        {/* Engines */}
-        <div className="flex gap-1.5">
-          <div className="w-4 h-3 bg-gradient-to-b from-secondary/50 to-transparent rounded-b" />
-          <div className="w-5 h-4 bg-gradient-to-b from-secondary/60 to-transparent rounded-b" />
-          <div className="w-4 h-3 bg-gradient-to-b from-secondary/50 to-transparent rounded-b" />
-        </div>
-      </div>
-      
-      {/* Engine glow */}
-      <motion.div 
-        animate={{ opacity: [0.5, 1, 0.5], scaleY: [1, 1.3, 1] }}
-        transition={{ duration: 0.3, repeat: Infinity }}
-        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-10 bg-gradient-to-b from-secondary via-pink-400 to-transparent rounded-full blur-md"
+      <img 
+        src={titanShipImg} 
+        alt="Titan MK-II" 
+        className="w-full h-full object-contain scale-150"
       />
-      
-      {/* Glow */}
-      <div className="absolute inset-0 blur-xl bg-secondary/20 -z-10" />
     </motion.div>
   );
 };
