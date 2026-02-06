@@ -36,7 +36,7 @@ const SHIPS: Record<ShipType, Ship> = {
   },
 };
 
-const INITIAL_SCORE = 2500;
+const INITIAL_SCORE = 25000;
 
 // Best score = lowest remaining distance (traveled the farthest)
 const getBestScore = (): number => {
