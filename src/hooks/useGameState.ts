@@ -193,62 +193,145 @@ export const useGameState = () => {
     return 1 + Math.floor(gameTime / 60) * 0.2;
   }, []);
 
+  // Maximum vertical (falling) obstacles on screen at once
+  const MAX_VERTICAL_OBSTACLES = 3;
+
   const spawnObstacles = useCallback(() => {
     setGameState(prev => {
+      // Count current vertical obstacles (no direction = falling from top)
+      const currentVerticalCount = prev.obstacles.filter(obs => !obs.direction).length;
+      
+      // Don't spawn more vertical obstacles if already at max
+      if (currentVerticalCount >= MAX_VERTICAL_OBSTACLES) {
+        // Still allow horizontal obstacles to spawn
+        const newObstacles: Obstacle[] = [];
+        
+        // Get Y positions of current vertical obstacles to avoid overlap
+        const verticalObstacleYs = prev.obstacles
+          .filter(obs => !obs.direction)
+          .map(obs => obs.y);
+        
+        // Spawn horizontal obstacle with higher chance to cover flight path
+        const densityMultiplier = getDensityMultiplier(prev.gameTime);
+        const stormMultiplier = prev.terraStorm.active ? 1.5 : 1;
+        const effectiveDensity = densityMultiplier * stormMultiplier;
+        
+        if (Math.random() < 0.4 * effectiveDensity) {
+          const fromLeft = Math.random() > 0.5;
+          const debrisSize = getColliderSize('debris');
+          
+          // Choose Y position that doesn't overlap with vertical obstacles
+          let targetY = 30 + Math.random() * 40; // Range 30-70
+          
+          // Avoid spawning at same Y as vertical obstacles (±15% margin)
+          const isOverlapping = verticalObstacleYs.some(
+            obsY => Math.abs(obsY - targetY) < 15
+          );
+          
+          if (!isOverlapping) {
+            const sideObstacle: Obstacle = {
+              id: `obs-side-${Date.now()}-${Math.random()}`,
+              x: fromLeft ? -10 : 110,
+              y: targetY,
+              width: debrisSize.width,
+              height: debrisSize.height,
+              type: 'debris',
+              direction: fromLeft ? 'right' : 'left',
+            };
+            newObstacles.push(sideObstacle);
+          }
+        }
+        
+        if (newObstacles.length === 0) {
+          return prev; // No changes
+        }
+        
+        return {
+          ...prev,
+          obstacles: [...prev.obstacles, ...newObstacles],
+        };
+      }
+      
       const densityMultiplier = getDensityMultiplier(prev.gameTime);
-      // Increase density during Terra Storm
       const stormMultiplier = prev.terraStorm.active ? 1.5 : 1;
       const effectiveDensity = densityMultiplier * stormMultiplier;
       
       const newObstacles: Obstacle[] = [];
       
-      // Base number of obstacles (1-3), increased by density
-      const baseCount = Math.floor(Math.random() * 2) + 1;
-      const obstacleCount = Math.min(4, Math.ceil(baseCount * effectiveDensity));
+      // Calculate how many more vertical obstacles we can spawn
+      const remainingSlots = MAX_VERTICAL_OBSTACLES - currentVerticalCount;
       
-      // Track used lanes to prevent overlap
-      const usedLanes: number[] = [];
+      // Base number of obstacles (1-2), limited by remaining slots
+      const baseCount = Math.floor(Math.random() * 2) + 1;
+      const obstacleCount = Math.min(remainingSlots, Math.ceil(baseCount * Math.min(effectiveDensity, 1.5)));
+      
+      // Track used lanes to prevent overlap (including existing obstacles)
+      const usedLanes: number[] = prev.obstacles
+        .filter(obs => !obs.direction && obs.y < 30) // Vertical obstacles near top
+        .map(obs => obs.x);
+      
+      // Get existing horizontal obstacles' Y positions
+      const horizontalObstacleYs = prev.obstacles
+        .filter(obs => obs.direction)
+        .map(obs => obs.y);
       
       for (let i = 0; i < obstacleCount; i++) {
         const types: Obstacle['type'][] = ['asteroid', 'debris', 'mine'];
         const type = types[Math.floor(Math.random() * types.length)];
         
-        // Get collider size from collision system for consistent sizing
         const colliderSize = getColliderSize(type as EntityType);
         
-        // Get a random lane that isn't already used (using collision system's LANES)
+        // Get a random lane that isn't already used
         const laneX = LANES.getRandom(usedLanes);
         usedLanes.push(laneX);
         
         // Stagger Y positions slightly for more dynamic patterns
-        const yOffset = Math.random() * 10;
+        const yOffset = Math.random() * 8;
         
         const obstacle: Obstacle = {
           id: `obs-${Date.now()}-${Math.random()}-${i}`,
-          x: laneX,             // LANE-SNAPPED X position
-          y: -10 - yOffset,     // Start above screen
-          width: colliderSize.width,   // From collision system
-          height: colliderSize.height, // From collision system
+          x: laneX,
+          y: -10 - yOffset,
+          width: colliderSize.width,
+          height: colliderSize.height,
           type,
         };
         
         newObstacles.push(obstacle);
       }
       
-      // Occasionally spawn side-coming debris (from left or right)
-      if (Math.random() < 0.25 * effectiveDensity) {
+      // Spawn horizontal obstacles more frequently to cover flight path
+      // Higher chance (40%) to ensure player can't stay in one lane safely
+      if (Math.random() < 0.4 * effectiveDensity) {
         const fromLeft = Math.random() > 0.5;
         const debrisSize = getColliderSize('debris');
-        const sideObstacle: Obstacle = {
-          id: `obs-side-${Date.now()}-${Math.random()}`,
-          x: fromLeft ? -10 : 110,
-          y: 30 + Math.random() * 30, // Middle area of screen
-          width: debrisSize.width,
-          height: debrisSize.height,
-          type: 'debris',
-          direction: fromLeft ? 'right' : 'left',
-        };
-        newObstacles.push(sideObstacle);
+        
+        // Choose Y position in middle-lower area (where player typically is)
+        let targetY = 35 + Math.random() * 45; // Range 35-80
+        
+        // Avoid spawning at same Y as other horizontal obstacles
+        const isOverlappingHorizontal = horizontalObstacleYs.some(
+          obsY => Math.abs(obsY - targetY) < 20
+        );
+        
+        // Avoid spawning at same Y as new vertical obstacles
+        const newVerticalYs = newObstacles.map(obs => obs.y + 50); // Estimate where they'll be
+        const isOverlappingVertical = newVerticalYs.some(
+          obsY => Math.abs(obsY - targetY) < 15
+        );
+        
+        if (!isOverlappingHorizontal && !isOverlappingVertical) {
+          const sideObstacle: Obstacle = {
+            id: `obs-side-${Date.now()}-${Math.random()}`,
+            x: fromLeft ? -10 : 110,
+            y: targetY,
+            width: debrisSize.width,
+            height: debrisSize.height,
+            type: 'debris',
+            direction: fromLeft ? 'right' : 'left',
+          };
+          newObstacles.push(sideObstacle);
+        }
       }
 
       return {
