@@ -25,7 +25,7 @@ const MenuScreen = ({ highScore, onStart }: MenuScreenProps) => {
           <Rocket className="w-12 h-12 text-primary animate-pulse-glow" />
         </div>
         <h1 className="font-orbitron text-6xl md:text-8xl font-bold text-primary text-glow-cyan mb-2">
-          2,500
+          25,000
         </h1>
         <h2 className="font-orbitron text-4xl md:text-6xl font-bold text-secondary text-glow-pink">
           KM

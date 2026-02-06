@@ -117,7 +117,7 @@ const Game = () => {
             key="game-over"
             score={gameState.score}
             highScore={gameState.highScore}
-            isNewHighScore={gameState.score === gameState.highScore && gameState.score < 2500}
+            isNewHighScore={gameState.score === gameState.highScore && gameState.score < 25000}
             won={gameState.score <= 0}
             onRestart={handleRestart}
             onMenu={goToMenu}
