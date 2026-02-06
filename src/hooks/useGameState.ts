@@ -15,6 +15,24 @@ const DEBUG_MODE = true;
 // Invincibility time after getting hit (in ms)
 const INVINCIBILITY_DURATION = 1500;
 
+// Anti-camping system constants
+const CAMPING_THRESHOLD_MS = 3000; // Time in same zone to trigger anti-camp
+const CORNER_ZONE_SIZE = 25; // Percentage of screen considered "corner zone"
+const EDGE_ZONE_SIZE = 15; // Percentage of screen considered "edge zone"
+
+// Corner/Edge zone definitions (percentages)
+const ZONES = {
+  topLeft: { xMin: 0, xMax: 30, yMin: 0, yMax: 35 },
+  topRight: { xMin: 70, xMax: 100, yMin: 0, yMax: 35 },
+  bottomLeft: { xMin: 0, xMax: 30, yMin: 65, yMax: 100 },
+  bottomRight: { xMin: 70, xMax: 100, yMin: 65, yMax: 100 },
+  leftEdge: { xMin: 0, xMax: EDGE_ZONE_SIZE, yMin: 0, yMax: 100 },
+  rightEdge: { xMin: 100 - EDGE_ZONE_SIZE, xMax: 100, yMin: 0, yMax: 100 },
+};
+
+// Extended lanes including edge positions for corner coverage
+const EXTENDED_LANES = [10, 17, 32, 50, 68, 83, 90] as const;
+
 const SHIPS: Record<ShipType, Ship> = {
   speeder: {
     id: 'speeder',
@@ -79,6 +97,11 @@ export const useGameState = () => {
     dodgePopups: [],
     showHitboxes: false, // Only toggleable in debug mode
   });
+
+  // Anti-camping tracking
+  const playerZoneRef = useRef<string | null>(null);
+  const zoneEnterTimeRef = useRef<number>(0);
+  const campingIntensityRef = useRef<number>(0);
 
   const gameLoopRef = useRef<number | null>(null);
   const obstacleSpawnRef = useRef<number | null>(null);
@@ -193,11 +216,83 @@ export const useGameState = () => {
     return 1 + Math.floor(gameTime / 60) * 0.2;
   }, []);
 
+  // Detect which zone the player is in
+  const getPlayerZone = useCallback((x: number, y: number): string | null => {
+    for (const [zoneName, zone] of Object.entries(ZONES)) {
+      if (x >= zone.xMin && x <= zone.xMax && y >= zone.yMin && y <= zone.yMax) {
+        return zoneName;
+      }
+    }
+    return null;
+  }, []);
+
+  // Update camping detection
+  const updateCampingDetection = useCallback((x: number, y: number) => {
+    const currentZone = getPlayerZone(x, y);
+    const now = Date.now();
+    
+    if (currentZone && currentZone.includes('Corner') || 
+        currentZone === 'leftEdge' || currentZone === 'rightEdge' ||
+        currentZone?.includes('top') || currentZone?.includes('bottom')) {
+      if (currentZone === playerZoneRef.current) {
+        // Still in same zone, check duration
+        const timeInZone = now - zoneEnterTimeRef.current;
+        if (timeInZone > CAMPING_THRESHOLD_MS) {
+          // Increase camping intensity (0 to 1)
+          campingIntensityRef.current = Math.min(1, (timeInZone - CAMPING_THRESHOLD_MS) / 5000);
+        }
+      } else {
+        // Entered new zone
+        playerZoneRef.current = currentZone;
+        zoneEnterTimeRef.current = now;
+        campingIntensityRef.current = 0;
+      }
+    } else {
+      // Not in a danger zone, reset
+      playerZoneRef.current = null;
+      campingIntensityRef.current = 0;
+    }
+  }, [getPlayerZone]);
+
   // Maximum vertical (falling) obstacles on screen at once
   const MAX_VERTICAL_OBSTACLES = 3;
 
+  // Get lane targeting player's zone for anti-camping
+  const getTargetedLane = useCallback((playerX: number, playerY: number, campingIntensity: number): number => {
+    // If camping intensity is high, target player's position
+    if (campingIntensity > 0.3 && Math.random() < campingIntensity) {
+      // Target near player's X position
+      const targetX = playerX + (Math.random() - 0.5) * 20;
+      return Math.max(10, Math.min(90, targetX));
+    }
+    
+    // If player is in corner/edge zone, prioritize lanes that cover that area
+    const zone = getPlayerZone(playerX, playerY);
+    if (zone) {
+      // 60% chance to spawn toward player's zone
+      if (Math.random() < 0.6) {
+        if (zone.includes('left') || zone === 'topLeft' || zone === 'bottomLeft') {
+          return EXTENDED_LANES[Math.floor(Math.random() * 3)]; // Left lanes: 10, 17, 32
+        }
+        if (zone.includes('right') || zone === 'topRight' || zone === 'bottomRight') {
+          return EXTENDED_LANES[4 + Math.floor(Math.random() * 3)]; // Right lanes: 68, 83, 90
+        }
+      }
+    }
+    
+    // Default: random extended lane
+    return EXTENDED_LANES[Math.floor(Math.random() * EXTENDED_LANES.length)];
+  }, [getPlayerZone]);
+
   const spawnObstacles = useCallback(() => {
     setGameState(prev => {
+      const playerX = prev.playerPosition.x;
+      const playerY = prev.playerPosition.y;
+      const campingIntensity = campingIntensityRef.current;
+      
+      // Update camping detection
+      updateCampingDetection(playerX, playerY);
+      
       // Count current vertical obstacles (no direction = falling from top)
       const currentVerticalCount = prev.obstacles.filter(obs => !obs.direction).length;
       
@@ -216,12 +311,25 @@ export const useGameState = () => {
         const stormMultiplier = prev.terraStorm.active ? 1.5 : 1;
         const effectiveDensity = densityMultiplier * stormMultiplier;
         
-        if (Math.random() < 0.4 * effectiveDensity) {
-          const fromLeft = Math.random() > 0.5;
+        // Increase spawn chance if camping
+        const campingBonus = campingIntensity * 0.3;
+        
+        if (Math.random() < (0.5 + campingBonus) * effectiveDensity) {
+          // Determine direction based on player position (target player's side)
+          let fromLeft = Math.random() > 0.5;
+          if (playerX < 30) fromLeft = true;  // Player on left, attack from left
+          if (playerX > 70) fromLeft = false; // Player on right, attack from right
+          
           const debrisSize = getColliderSize('debris');
           
-          // Choose Y position that doesn't overlap with vertical obstacles
-          let targetY = 30 + Math.random() * 40; // Range 30-70
+          // Target player's Y zone if camping, otherwise random
+          let targetY: number;
+          if (campingIntensity > 0.5) {
+            targetY = playerY + (Math.random() - 0.5) * 20;
+          } else {
+            targetY = 25 + Math.random() * 55; // Range 25-80 (covers more area)
+          }
+          targetY = Math.max(25, Math.min(85, targetY));
           
           // Avoid spawning at same Y as vertical obstacles (±15% margin)
           const isOverlapping = verticalObstacleYs.some(
@@ -281,8 +389,19 @@ export const useGameState = () => {
         
         const colliderSize = getColliderSize(type as EntityType);
         
-        // Get a random lane that isn't already used
-        const laneX = LANES.getRandom(usedLanes);
+        // Get lane - use targeted lane if camping, otherwise random (including edge lanes)
+        let laneX: number;
+        if (campingIntensity > 0.3 && Math.random() < campingIntensity) {
+          laneX = getTargetedLane(playerX, playerY, campingIntensity);
+        } else {
+          // Use extended lanes which include edge positions
+          const availableLanes = EXTENDED_LANES.filter(
+            lane => !usedLanes.some(used => Math.abs(used - lane) < 10)
+          );
+          laneX = availableLanes.length > 0 
+            ? availableLanes[Math.floor(Math.random() * availableLanes.length)]
+            : EXTENDED_LANES[Math.floor(Math.random() * EXTENDED_LANES.length)];
+        }
         usedLanes.push(laneX);
         
         // Stagger Y positions slightly for more dynamic patterns
@@ -301,13 +420,24 @@ export const useGameState = () => {
       }
       
       // Spawn horizontal obstacles more frequently to cover flight path
-      // Higher chance (40%) to ensure player can't stay in one lane safely
-      if (Math.random() < 0.4 * effectiveDensity) {
-        const fromLeft = Math.random() > 0.5;
+      // Higher chance (50%) to ensure player can't stay in one lane safely
+      const campingBonus = campingIntensity * 0.3;
+      if (Math.random() < (0.5 + campingBonus) * effectiveDensity) {
+        // Determine direction based on player position
+        let fromLeft = Math.random() > 0.5;
+        if (playerX < 30) fromLeft = true;
+        if (playerX > 70) fromLeft = false;
+        
         const debrisSize = getColliderSize('debris');
         
-        // Choose Y position in middle-lower area (where player typically is)
-        let targetY = 35 + Math.random() * 45; // Range 35-80
+        // Target player's Y zone if camping
+        let targetY: number;
+        if (campingIntensity > 0.5) {
+          targetY = playerY + (Math.random() - 0.5) * 15;
+        } else {
+          targetY = 25 + Math.random() * 55; // Range 25-80
+        }
+        targetY = Math.max(25, Math.min(85, targetY));
         
         // Avoid spawning at same Y as other horizontal obstacles
         const isOverlappingHorizontal = horizontalObstacleYs.some(
@@ -315,7 +445,7 @@ export const useGameState = () => {
         );
         
         // Avoid spawning at same Y as new vertical obstacles
-        const newVerticalYs = newObstacles.map(obs => obs.y + 50); // Estimate where they'll be
+        const newVerticalYs = newObstacles.map(obs => obs.y + 50);
         const isOverlappingVertical = newVerticalYs.some(
           obsY => Math.abs(obsY - targetY) < 15
         );
@@ -339,7 +469,7 @@ export const useGameState = () => {
         obstacles: [...prev.obstacles, ...newObstacles],
       };
     });
-  }, [getDensityMultiplier]);
+  }, [getDensityMultiplier, getPlayerZone, getTargetedLane, updateCampingDetection]);
 
   const spawnSuddenEntity = useCallback(() => {
     onIncomingRef.current();
