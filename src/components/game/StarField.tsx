@@ -47,11 +47,11 @@ const StarField = () => {
         ctx.shadowBlur = 10;
         ctx.shadowColor = star.color;
 
-        star.x -= star.speed;
+        star.y += star.speed;
 
-        if (star.x < 0) {
-          star.x = canvas.width;
-          star.y = Math.random() * canvas.height;
+        if (star.y > canvas.height) {
+          star.y = 0;
+          star.x = Math.random() * canvas.width;
         }
       });
 
