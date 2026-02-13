@@ -543,6 +543,8 @@ export const useGameState = () => {
     return checkCollisionSystem(playerPos, playerType, entity, 'ufo');
   }, []);
 
+  const [secretVictory, setSecretVictory] = useState(false);
+
   const endGame = useCallback(() => {
     setGameState(prev => {
       // Lower score = better (traveled farther)
@@ -558,6 +560,17 @@ export const useGameState = () => {
         highScore: newBestScore,
       };
     });
+    setScreen('game-over');
+  }, []);
+
+  const triggerSecretVictory = useCallback(() => {
+    setSecretVictory(true);
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: false,
+      isGameOver: true,
+      score: 0,
+    }));
     setScreen('game-over');
   }, []);
 
@@ -921,6 +934,17 @@ export const useGameState = () => {
     }));
   }, []);
 
+  // Reset secret victory when going to menu
+  const goToMenuWrapped = useCallback(() => {
+    setSecretVictory(false);
+    goToMenu();
+  }, [goToMenu]);
+
+  const restartGameWrapped = useCallback(() => {
+    setSecretVictory(false);
+    restartGame();
+  }, [restartGame]);
+
   return {
     screen,
     gameState,
@@ -929,10 +953,12 @@ export const useGameState = () => {
     selectShip,
     startGame,
     movePlayer,
-    goToMenu,
+    goToMenu: goToMenuWrapped,
     goToShipSelect,
-    restartGame,
+    restartGame: restartGameWrapped,
     endGame,
+    triggerSecretVictory,
+    secretVictory,
     setSoundCallbacks,
     toggleHitboxDebug: DEBUG_MODE ? toggleHitboxDebug : undefined,
     // Export collision system utilities for debug visualization

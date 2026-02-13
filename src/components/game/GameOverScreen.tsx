@@ -1,11 +1,13 @@
 import { motion } from 'framer-motion';
 import { Trophy, RotateCcw, Home, Sparkles } from 'lucide-react';
+import trueEndingImage from '@/assets/true-ending.png';
 
 interface GameOverScreenProps {
   score: number;
   highScore: number;
   isNewHighScore: boolean;
   won: boolean;
+  secretVictory?: boolean;
   onRestart: () => void;
   onMenu: () => void;
 }
@@ -15,9 +17,63 @@ const GameOverScreen = ({
   highScore,
   isNewHighScore,
   won,
+  secretVictory = false,
   onRestart,
   onMenu,
 }: GameOverScreenProps) => {
+  if (secretVictory) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex flex-col items-center justify-center min-h-screen px-4 relative z-10"
+      >
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', delay: 0.2 }}
+          className="text-center mb-6"
+        >
+          <motion.h1
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="font-orbitron text-3xl md:text-4xl font-bold text-primary text-glow-cyan mb-2"
+          >
+            SECRET UNLOCKED!
+          </motion.h1>
+          <p className="font-rajdhani text-lg text-muted-foreground">YOU FOUND IT!</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="mb-8 rounded-xl overflow-hidden border-2 border-primary/50 box-glow-cyan max-w-md"
+        >
+          <img src={trueEndingImage} alt="True Ending" className="w-full h-auto" />
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="flex flex-col sm:flex-row gap-4"
+        >
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={onMenu}
+            className="flex items-center justify-center gap-3 px-8 py-4 font-orbitron font-bold text-foreground bg-space-medium border border-primary/50 rounded-lg hover:bg-space-medium/80 transition-colors"
+          >
+            <Home className="w-5 h-5" />
+            MAIN MENU
+          </motion.button>
+        </motion.div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
