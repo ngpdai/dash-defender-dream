@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Shield, Gauge, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup } from '@/types/game';
+import EasterEggModal from './EasterEggModal';
 import { AsteroidVisual, UFOVisual, TitanShip, SpeederShip } from './GameVisuals';
 import { 
   EntityType, 
@@ -23,6 +24,7 @@ interface GameScreenProps {
   getDebugInfo?: (x: number, y: number, entityType: EntityType) => CollisionDebugInfo;
   collisionConfig?: typeof COLLISION_CONFIG;
   isDebugMode?: boolean;
+  onSecretVictory?: () => void;
 }
 
 /**
@@ -236,7 +238,7 @@ const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
   );
 };
 
-const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, getDebugInfo, collisionConfig, isDebugMode = false }: GameScreenProps) => {
+const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, getDebugInfo, collisionConfig, isDebugMode = false, onSecretVictory }: GameScreenProps) => {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showStartPrompt, setShowStartPrompt] = useState(true);
@@ -417,6 +419,11 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
+        {/* Easter Egg - only for Speeder X-1 */}
+        {shipData?.id === 'speeder' && onSecretVictory && gameState.isPlaying && (
+          <EasterEggModal onSecretUnlocked={onSecretVictory} />
+        )}
+
         {/* Terra Storm Overlay */}
         <AnimatePresence>
           {gameState.terraStorm.active && (

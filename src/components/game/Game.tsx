@@ -25,6 +25,8 @@ const Game = () => {
     getDebugInfo,
     collisionConfig,
     isDebugMode,
+    triggerSecretVictory,
+    secretVictory,
   } = useGameState();
 
   const {
@@ -109,6 +111,7 @@ const Game = () => {
             getDebugInfo={getDebugInfo}
             collisionConfig={collisionConfig}
             isDebugMode={isDebugMode}
+            onSecretVictory={triggerSecretVictory}
           />
         )}
 
@@ -119,6 +122,7 @@ const Game = () => {
             highScore={gameState.highScore}
             isNewHighScore={gameState.score === gameState.highScore && gameState.score < 25000}
             won={gameState.score <= 0}
+            secretVictory={secretVictory}
             onRestart={handleRestart}
             onMenu={goToMenu}
           />
