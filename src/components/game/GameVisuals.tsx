@@ -24,7 +24,7 @@ export const TitanShip = ({ isInvincible }: { isInvincible?: boolean }) => (
 );
 
 // Speeder X-1 - Fast, sleek design
-export const SpeederShip = ({ isInvincible }: { isInvincible?: boolean }) => (
+export const SpeederShip = ({ isInvincible, overdriveActive }: { isInvincible?: boolean; overdriveActive?: boolean }) => (
   <motion.div
     animate={{ 
       y: [0, -3, 0],
@@ -36,6 +36,15 @@ export const SpeederShip = ({ isInvincible }: { isInvincible?: boolean }) => (
     }}
     className="relative w-[60px] h-[84px] md:w-[72px] md:h-[96px]"
   >
+    {/* Overdrive aura */}
+    {overdriveActive && (
+      <motion.div
+        animate={{ scale: [1, 1.3, 1], opacity: [0.4, 0.8, 0.4] }}
+        transition={{ duration: 0.8, repeat: Infinity }}
+        className="absolute inset-0 -m-6 rounded-full bg-primary/20 border-2 border-primary/60"
+        style={{ boxShadow: '0 0 30px hsl(180 100% 50% / 0.6), 0 0 60px hsl(180 100% 50% / 0.3)' }}
+      />
+    )}
     <img 
       src={speederShipImg} 
       alt="Speeder X-1" 
