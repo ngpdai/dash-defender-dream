@@ -1,4 +1,5 @@
-import { motion } from 'framer-motion';
+import { useState, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, RotateCcw, Home, Sparkles } from 'lucide-react';
 import trueEndingImage from '@/assets/true-ending.png';
 
@@ -11,6 +12,47 @@ interface GameOverScreenProps {
   onRestart: () => void;
   onMenu: () => void;
 }
+
+const ExplosionWithEasterEgg = () => {
+  const [showHint, setShowHint] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    timerRef.current = setTimeout(() => setShowHint(true), 3000);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setShowHint(false);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ scale: 2, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: 'spring' }}
+      className="text-6xl mb-4 relative cursor-pointer select-none"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      💥
+      <AnimatePresence>
+        {showHint && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.3 }}
+            className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 whitespace-nowrap px-4 py-3 rounded-lg bg-space-dark/90 border border-primary/60 box-glow-cyan font-rajdhani text-sm text-primary text-glow-cyan pointer-events-none"
+          >
+            The Creator is a fan of Manlybadasshero
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
 
 const GameOverScreen = ({
   score,
@@ -106,14 +148,7 @@ const GameOverScreen = ({
           </>
         ) : (
           <>
-            <motion.div
-              initial={{ scale: 2, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring' }}
-              className="text-6xl mb-4"
-            >
-              💥
-            </motion.div>
+            <ExplosionWithEasterEgg />
             <h1 className="font-orbitron text-4xl md:text-5xl font-bold text-secondary text-glow-pink mb-2">
               GAME OVER
             </h1>
