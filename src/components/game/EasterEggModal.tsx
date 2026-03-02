@@ -18,20 +18,34 @@ const EasterEggModal = ({ onSecretUnlocked }: EasterEggModalProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState('');
   const [input, setInput] = useState('');
+  const [shake, setShake] = useState(false);
+  const [flash, setFlash] = useState<'none' | 'success' | 'error'>('none');
 
   const openModal = () => {
     setQuestion(QUESTIONS[Math.floor(Math.random() * QUESTIONS.length)]);
     setInput('');
+    setShake(false);
+    setFlash('none');
     setIsOpen(true);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (VALID_ANSWERS.includes(input.trim().toLowerCase())) {
-      setIsOpen(false);
-      onSecretUnlocked();
+      setFlash('success');
+      setTimeout(() => {
+        setIsOpen(false);
+        setFlash('none');
+        onSecretUnlocked();
+      }, 500);
     } else {
-      setIsOpen(false);
+      setFlash('error');
+      setShake(true);
+      setTimeout(() => {
+        setShake(false);
+        setFlash('none');
+        setIsOpen(false);
+      }, 600);
     }
   };
 
@@ -58,12 +72,39 @@ const EasterEggModal = ({ onSecretUnlocked }: EasterEggModalProps) => {
             className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70"
             onClick={() => setIsOpen(false)}
           >
+            {/* Success flash overlay */}
+            {flash === 'success' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.6, 0] }}
+                transition={{ duration: 0.5 }}
+                className="absolute inset-0 bg-primary/40 z-[201]"
+              />
+            )}
+            {/* Error flash overlay */}
+            {flash === 'error' && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.4, 0] }}
+                transition={{ duration: 0.4 }}
+                className="absolute inset-0 bg-destructive/30 z-[201]"
+              />
+            )}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+              animate={{ 
+                scale: 1, 
+                opacity: 1,
+                x: shake ? [0, -8, 8, -6, 6, -3, 3, 0] : 0,
+              }}
               exit={{ scale: 0.8, opacity: 0 }}
+              transition={shake ? { x: { duration: 0.5 } } : undefined}
               onClick={(e) => e.stopPropagation()}
-              className="bg-space-medium border border-primary/30 rounded-xl p-6 mx-4 max-w-sm w-full"
+              className={`bg-space-medium border rounded-xl p-6 mx-4 max-w-sm w-full z-[202] ${
+                flash === 'success' ? 'border-primary box-glow-cyan' : 
+                flash === 'error' ? 'border-destructive box-glow-pink' : 
+                'border-primary/30'
+              }`}
             >
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-orbitron text-lg text-primary text-glow-cyan">???</h3>

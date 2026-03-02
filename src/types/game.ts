@@ -72,7 +72,12 @@ export interface GameState {
   isInvincible: boolean;
   lastHitTime: number;
   dodgePopups: DodgePopup[];
-  showHitboxes: boolean; // Debug mode to visualize hitboxes
+  showHitboxes: boolean;
+  // Overdrive buff system
+  overdriveActive: boolean;
+  overdriveShields: number;
+  overdriveStartTime: number;
+  overdriveScoreRate: number; // points per second to drain
 }
 
 export type GameScreen = 'menu' | 'ship-select' | 'game' | 'game-over';

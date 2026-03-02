@@ -238,7 +238,7 @@ const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
   );
 };
 
-const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, getDebugInfo, collisionConfig, isDebugMode = false, onSecretVictory }: GameScreenProps) => {
+const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, getDebugInfo, collisionConfig, isDebugMode = false, onSecretVictory }: GameScreenProps) => {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showStartPrompt, setShowStartPrompt] = useState(true);
@@ -352,7 +352,7 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
       <div className="flex justify-between items-center p-4 bg-space-dark/80 border-b border-primary/30">
         {/* Score */}
         <div className="flex items-center gap-4">
-          <div className="font-orbitron text-2xl md:text-3xl font-bold text-primary text-glow-cyan">
+          <div className={`font-orbitron text-2xl md:text-3xl font-bold ${gameState.overdriveActive ? 'text-secondary text-glow-pink' : 'text-primary text-glow-cyan'}`}>
             {gameState.score.toLocaleString()}
             <span className="text-sm text-muted-foreground ml-2">KM</span>
           </div>
@@ -360,8 +360,19 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
 
         {/* Status */}
         <div className="flex items-center gap-4">
+          {/* Overdrive Shield Counter */}
+          {gameState.overdriveActive && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="flex items-center gap-1 px-3 py-1 bg-primary/20 rounded-full border border-primary/50 box-glow-cyan"
+            >
+              <Shield className="w-4 h-4 text-primary" />
+              <span className="font-rajdhani text-sm font-bold text-primary">🛡️ {gameState.overdriveShields}</span>
+            </motion.div>
+          )}
           {/* Shield */}
-          {gameState.hasShield && (
+          {!gameState.overdriveActive && gameState.hasShield && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -431,6 +442,59 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
           )}
         </AnimatePresence>
 
+        {/* Overdrive Mode Overlay */}
+        <AnimatePresence>
+          {gameState.overdriveActive && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 pointer-events-none z-20"
+            >
+              <div 
+                className="absolute inset-0"
+                style={{
+                  boxShadow: 'inset 0 0 80px hsl(180 100% 50% / 0.3), inset 0 0 40px hsl(180 100% 50% / 0.2)',
+                }}
+              />
+              {[...Array(8)].map((_, i) => (
+                <motion.div
+                  key={`speed-${i}`}
+                  initial={{ y: '-10%', opacity: 0 }}
+                  animate={{ y: '110%', opacity: [0, 0.6, 0] }}
+                  transition={{ duration: 0.4, repeat: Infinity, delay: i * 0.15, ease: 'linear' }}
+                  className="absolute w-px bg-primary/60"
+                  style={{ left: `${10 + i * 12}%`, height: '20%' }}
+                />
+              ))}
+              <motion.div
+                initial={{ y: -50, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                className="absolute top-20 left-1/2 -translate-x-1/2 flex items-center gap-2 px-6 py-2 bg-primary/80 rounded-lg border border-primary box-glow-cyan"
+              >
+                <motion.span
+                  animate={{ opacity: [0.7, 1, 0.7] }}
+                  transition={{ duration: 0.5, repeat: Infinity }}
+                  className="font-orbitron text-sm font-bold text-primary-foreground"
+                >
+                  ⚡ OVERDRIVE MODE ⚡
+                </motion.span>
+              </motion.div>
+              {gameState.overdriveScoreRate > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute top-32 left-1/2 -translate-x-1/2 px-4 py-1 bg-space-dark/80 rounded border border-primary/30"
+                >
+                  <span className="font-rajdhani text-sm text-primary">
+                    TIME TO DESTINATION: {Math.max(0, Math.ceil(gameState.score / gameState.overdriveScoreRate))}s
+                  </span>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Grid lines - vertical scrolling effect */}
         <div className="absolute inset-0 opacity-10">
           {/* Vertical lines (static) */}
@@ -485,7 +549,7 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
             )}
             {/* Ship - custom visual component */}
             {shipData?.id === 'speeder' ? (
-              <SpeederShip isInvincible={gameState.isInvincible} />
+              <SpeederShip isInvincible={gameState.isInvincible} overdriveActive={gameState.overdriveActive} />
             ) : (
               <TitanShip isInvincible={gameState.isInvincible} />
             )}
@@ -559,4 +623,4 @@ const GameScreen = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggl
   );
 };
 
-export default GameScreen;
+export default GameScreenComponent;

@@ -95,7 +95,11 @@ export const useGameState = () => {
     isInvincible: false,
     lastHitTime: 0,
     dodgePopups: [],
-    showHitboxes: false, // Only toggleable in debug mode
+    showHitboxes: false,
+    overdriveActive: false,
+    overdriveShields: 0,
+    overdriveStartTime: 0,
+    overdriveScoreRate: 0,
   });
 
   // Anti-camping tracking
@@ -165,7 +169,11 @@ export const useGameState = () => {
       isInvincible: false,
       lastHitTime: 0,
       dodgePopups: [],
-      showHitboxes: DEBUG_MODE ? prev.showHitboxes : false, // Reset debug in production
+      showHitboxes: DEBUG_MODE ? prev.showHitboxes : false,
+      overdriveActive: false,
+      overdriveShields: 0,
+      overdriveStartTime: 0,
+      overdriveScoreRate: 0,
     }));
   }, [gameState.selectedShip]);
 
@@ -564,14 +572,19 @@ export const useGameState = () => {
   }, []);
 
   const triggerSecretVictory = useCallback(() => {
-    setSecretVictory(true);
-    setGameState(prev => ({
-      ...prev,
-      isPlaying: false,
-      isGameOver: true,
-      score: 0,
-    }));
-    setScreen('game-over');
+    // Instead of immediately ending, activate overdrive buffs
+    setGameState(prev => {
+      const scoreRate = prev.score / 10; // Drain all score in 10 seconds
+      return {
+        ...prev,
+        overdriveActive: true,
+        overdriveShields: 10,
+        overdriveStartTime: Date.now(),
+        overdriveScoreRate: scoreRate,
+        isInvincible: true, // Permanent invincibility during overdrive
+        hasShield: true,
+      };
+    });
   }, []);
 
   // Game loop with synchronized speed multiplier
@@ -684,77 +697,83 @@ export const useGameState = () => {
             return entity.y > -10; // Remove when off top of screen
           });
 
-        // Check obstacle collisions
-        let hitObstacle = false;
-        for (const obs of updatedObstacles) {
-          if (checkCollision(prev.playerPosition, obs, prev.selectedShip)) {
-            hitObstacle = true;
-            break;
+        // Skip collision checks during overdrive (invincible)
+        if (!prev.overdriveActive) {
+          // Check obstacle collisions
+          let hitObstacle = false;
+          for (const obs of updatedObstacles) {
+            if (checkCollision(prev.playerPosition, obs, prev.selectedShip)) {
+              hitObstacle = true;
+              break;
+            }
           }
-        }
 
-        // Check entity collisions
-        let hitEntity = false;
-        updatedEntities = updatedEntities.filter(entity => {
-          if (!entity.isExploding && checkSuddenEntityCollision(prev.playerPosition, entity, prev.selectedShip)) {
-            hitEntity = true;
-            onExplosionRef.current();
-            return false;
-          }
-          return true;
-        });
+          // Check entity collisions
+          let hitEntity = false;
+          updatedEntities = updatedEntities.filter(entity => {
+            if (!entity.isExploding && checkSuddenEntityCollision(prev.playerPosition, entity, prev.selectedShip)) {
+              hitEntity = true;
+              onExplosionRef.current();
+              return false;
+            }
+            return true;
+          });
 
-        // Check if player is invincible (recently got hit)
-        const isCurrentlyInvincible = prev.isInvincible && (Date.now() - prev.lastHitTime < INVINCIBILITY_DURATION);
+          // Check if player is invincible (recently got hit)
+          const isCurrentlyInvincible = prev.isInvincible && (Date.now() - prev.lastHitTime < INVINCIBILITY_DURATION);
 
-        if ((hitObstacle || hitEntity) && !isCurrentlyInvincible) {
-          const nowHit = Date.now();
-          
-          if (prev.hasShield) {
-            // Shield absorbs the hit
-            onShieldBreakRef.current();
-            return { 
-              ...prev, 
-              obstacles: updatedObstacles, 
-              suddenEntities: updatedEntities,
-              hasShield: false,
-              isInvincible: true,
-              lastHitTime: nowHit,
-            };
-          } else if (prev.lives > 1) {
-            // Lose a life but continue
-            onCollisionRef.current();
-            return { 
-              ...prev, 
-              obstacles: updatedObstacles, 
-              suddenEntities: updatedEntities,
-              lives: prev.lives - 1,
-              isInvincible: true,
-              lastHitTime: nowHit,
-            };
-          } else {
-            // No shield, no extra lives - game over will be handled by the effect
-            onCollisionRef.current();
-            return {
-              ...prev,
-              obstacles: updatedObstacles,
-              suddenEntities: updatedEntities,
-              lives: 0,
-            };
+          if ((hitObstacle || hitEntity) && !isCurrentlyInvincible) {
+            const nowHit = Date.now();
+            
+            if (prev.hasShield) {
+              onShieldBreakRef.current();
+              return { 
+                ...prev, 
+                obstacles: updatedObstacles, 
+                suddenEntities: updatedEntities,
+                hasShield: false,
+                isInvincible: true,
+                lastHitTime: nowHit,
+              };
+            } else if (prev.lives > 1) {
+              onCollisionRef.current();
+              return { 
+                ...prev, 
+                obstacles: updatedObstacles, 
+                suddenEntities: updatedEntities,
+                lives: prev.lives - 1,
+                isInvincible: true,
+                lastHitTime: nowHit,
+              };
+            } else {
+              onCollisionRef.current();
+              return {
+                ...prev,
+                obstacles: updatedObstacles,
+                suddenEntities: updatedEntities,
+                lives: 0,
+              };
+            }
           }
         }
         
-        // Update invincibility status
-        const stillInvincible = prev.isInvincible && (Date.now() - prev.lastHitTime < INVINCIBILITY_DURATION);
+        // Update invincibility status (always invincible during overdrive)
+        const stillInvincible = prev.overdriveActive || (prev.isInvincible && (Date.now() - prev.lastHitTime < INVINCIBILITY_DURATION));
 
         // Update game time
         const newGameTime = prev.gameTime + deltaTime / 1000;
         
-        // Calculate dodge score deduction (-10 per dodge)
-        const dodgeDeduction = dodgeCount * 10;
-        
-        // Calculate new score (only dodge deductions in game loop, time deduction handled separately)
-        let newScore = Math.max(0, prev.score - dodgeDeduction);
+        // Calculate score
+        let newScore: number;
+        if (prev.overdriveActive) {
+          // Overdrive: rapid forced countdown
+          const elapsed = (Date.now() - prev.overdriveStartTime) / 1000;
+          newScore = Math.max(0, Math.round(prev.score - prev.overdriveScoreRate * (deltaTime / 1000)));
+        } else {
+          // Normal: dodge deductions only
+          const dodgeDeduction = dodgeCount * 10;
+          newScore = Math.max(0, prev.score - dodgeDeduction);
+        }
         
         // Increase difficulty (10% every 30 seconds)
         const newDifficulty = 1 + Math.floor(newGameTime / 30) * 0.1;
@@ -870,38 +889,52 @@ export const useGameState = () => {
     };
   }, [gameState.isPlaying, gameState.isPaused, spawnSuddenEntity]);
 
-  // Score countdown (-5 every 5 seconds)
+  // Score countdown (-5 every 5 seconds) - skip during overdrive
   useEffect(() => {
-    if (!gameState.isPlaying || gameState.isPaused) return;
+    if (!gameState.isPlaying || gameState.isPaused || gameState.overdriveActive) return;
 
     const scoreInterval = setInterval(() => {
       setGameState(prev => {
+        if (prev.overdriveActive) return prev;
         const newScore = Math.max(0, prev.score - 5);
         if (newScore <= 0) {
           return prev;
         }
         return { ...prev, score: newScore };
       });
-    }, 5000); // Every 5 seconds
+    }, 5000);
 
     return () => clearInterval(scoreInterval);
-  }, [gameState.isPlaying, gameState.isPaused]);
+  }, [gameState.isPlaying, gameState.isPaused, gameState.overdriveActive]);
 
   // Check for game over conditions (only when lives reach 0)
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isGameOver) {
-      // Game over when no lives left
-      if (gameState.lives <= 0) {
+      // During overdrive, skip death by lives (invincible)
+      if (!gameState.overdriveActive && gameState.lives <= 0) {
         endGame();
         return;
       }
 
-      // Check win condition
+      // Check win condition - score reaches 0
       if (gameState.score <= 0) {
-        endGame();
+        if (gameState.overdriveActive) {
+          // Overdrive victory → secret ending
+          setSecretVictory(true);
+          setGameState(prev => ({
+            ...prev,
+            isPlaying: false,
+            isGameOver: true,
+            score: 0,
+            overdriveActive: false,
+          }));
+          setScreen('game-over');
+        } else {
+          endGame();
+        }
       }
     }
-  }, [gameState.isPlaying, gameState.isGameOver, gameState.lives, gameState.score, endGame]);
+  }, [gameState.isPlaying, gameState.isGameOver, gameState.lives, gameState.score, gameState.overdriveActive, endGame]);
 
   const goToMenu = useCallback(() => {
     setScreen('menu');
