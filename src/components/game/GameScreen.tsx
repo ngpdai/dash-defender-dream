@@ -25,6 +25,7 @@ interface GameScreenProps {
   collisionConfig?: typeof COLLISION_CONFIG;
   isDebugMode?: boolean;
   onSecretVictory?: () => void;
+  onFlashComplete?: () => void;
 }
 
 /**
@@ -238,7 +239,7 @@ const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
   );
 };
 
-const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, getDebugInfo, collisionConfig, isDebugMode = false, onSecretVictory }: GameScreenProps) => {
+const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound, onToggleHitboxDebug, getDebugInfo, collisionConfig, isDebugMode = false, onSecretVictory, onFlashComplete }: GameScreenProps) => {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showStartPrompt, setShowStartPrompt] = useState(true);
@@ -590,6 +591,30 @@ const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound
             <DodgePopupComponent key={popup.id} popup={popup} />
           ))}
         </AnimatePresence>
+
+        {/* Flash Effect Overlay */}
+        <AnimatePresence>
+          {gameState.flashActive && (
+            <motion.div
+              key="flash-overlay"
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: [0, 1, 1, 0], scale: [0, 0.5, 1.5, 3] }}
+              transition={{ duration: 1, ease: 'easeOut', times: [0, 0.2, 0.6, 1] }}
+              onAnimationComplete={() => onFlashComplete?.()}
+              className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center"
+            >
+              <div
+                className="w-full h-full rounded-full"
+                style={{
+                  background: gameState.flashColor === 'cyan'
+                    ? 'radial-gradient(circle, rgba(0,255,255,1) 0%, rgba(0,255,255,0.6) 30%, rgba(0,136,255,0.3) 60%, transparent 80%)'
+                    : 'radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.3) 60%, transparent 80%)',
+                }}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Start Prompt */}
         {showStartPrompt && !gameState.isPlaying && (
           <motion.div
