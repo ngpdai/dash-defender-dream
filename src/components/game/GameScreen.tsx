@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Shield, Gauge, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup } from '@/types/game';
@@ -236,6 +236,63 @@ const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
         <span className="font-orbitron text-sm text-destructive-foreground">TERRA STORM</span>
       </motion.div>
     </motion.div>
+  );
+};
+
+const RadarPulse = ({ x, y, isPlaying }: { x: number; y: number; isPlaying: boolean }) => {
+  const [pulses, setPulses] = useState<number[]>([]);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setPulses([]);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      return;
+    }
+
+    // Spawn first pulse after 2s, then every 7s
+    const timeout = setTimeout(() => {
+      setPulses(p => [...p, Date.now()]);
+      intervalRef.current = setInterval(() => {
+        setPulses(p => [...p.filter(t => Date.now() - t < 2000), Date.now()]);
+      }, 7000);
+    }, 2000);
+
+    return () => {
+      clearTimeout(timeout);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [isPlaying]);
+
+  // Clean expired pulses
+  useEffect(() => {
+    if (pulses.length === 0) return;
+    const timer = setTimeout(() => {
+      setPulses(p => p.filter(t => Date.now() - t < 2000));
+    }, 2100);
+    return () => clearTimeout(timer);
+  }, [pulses]);
+
+  return (
+    <>
+      {pulses.map(id => (
+        <motion.div
+          key={id}
+          initial={{ width: 0, height: 0, opacity: 0.8 }}
+          animate={{ width: '250vmax', height: '250vmax', opacity: 0 }}
+          transition={{ duration: 1.8, ease: 'easeOut' }}
+          className="absolute rounded-full pointer-events-none"
+          style={{
+            left: `${x}%`,
+            top: `${y}%`,
+            transform: 'translate(-50%, -50%)',
+            border: '2px solid rgba(0, 255, 200, 0.6)',
+            boxShadow: '0 0 12px rgba(0, 255, 200, 0.4), inset 0 0 12px rgba(0, 255, 200, 0.1)',
+            zIndex: 5,
+          }}
+        />
+      ))}
+    </>
   );
 };
 
@@ -523,6 +580,9 @@ const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound
             />
           ))}
         </div>
+
+        {/* Radar Pulse Effect - behind ship */}
+        <RadarPulse x={gameState.playerPosition.x} y={gameState.playerPosition.y} isPlaying={gameState.isPlaying} />
 
         {/* Player Ship */}
         <motion.div
