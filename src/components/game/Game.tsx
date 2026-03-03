@@ -27,6 +27,7 @@ const Game = () => {
     isDebugMode,
     triggerSecretVictory,
     secretVictory,
+    onFlashComplete,
   } = useGameState();
 
   const {
@@ -63,11 +64,15 @@ const Game = () => {
   };
 
   const handleGameOver = () => {
-    if (gameState.score <= 0) {
+    if (gameState.score <= 0 || secretVictory) {
       playVictorySound();
     } else {
       playGameOverSound();
     }
+  };
+
+  const handleFlashComplete = () => {
+    onFlashComplete();
   };
 
   // Play game over sound when screen changes to game-over
@@ -112,6 +117,7 @@ const Game = () => {
             collisionConfig={collisionConfig}
             isDebugMode={isDebugMode}
             onSecretVictory={triggerSecretVictory}
+            onFlashComplete={handleFlashComplete}
           />
         )}
 

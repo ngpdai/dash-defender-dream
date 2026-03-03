@@ -78,6 +78,10 @@ export interface GameState {
   overdriveShields: number;
   overdriveStartTime: number;
   overdriveScoreRate: number; // points per second to drain
+  // Ending system
+  endingTriggered: boolean;
+  flashActive: boolean;
+  flashColor: 'white' | 'cyan';
 }
 
 export type GameScreen = 'menu' | 'ship-select' | 'game' | 'game-over';

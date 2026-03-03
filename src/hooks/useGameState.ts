@@ -100,6 +100,9 @@ export const useGameState = () => {
     overdriveShields: 0,
     overdriveStartTime: 0,
     overdriveScoreRate: 0,
+    endingTriggered: false,
+    flashActive: false,
+    flashColor: 'white',
   });
 
   // Anti-camping tracking
@@ -174,6 +177,9 @@ export const useGameState = () => {
       overdriveShields: 0,
       overdriveStartTime: 0,
       overdriveScoreRate: 0,
+      endingTriggered: false,
+      flashActive: false,
+      flashColor: 'white',
     }));
   }, [gameState.selectedShip]);
 
@@ -783,7 +789,24 @@ export const useGameState = () => {
           popup => Date.now() - popup.createdAt < 1000
         );
 
-        if (newScore <= 0) {
+        if (newScore < 10 && !prev.endingTriggered) {
+          return {
+            ...prev,
+            obstacles: updatedObstacles,
+            suddenEntities: updatedEntities,
+            score: 0,
+            gameTime: newGameTime,
+            difficulty: newDifficulty,
+            distance: prev.distance + verticalSpeed * deltaTime,
+            isInvincible: true,
+            dodgePopups: activePopups,
+            endingTriggered: true,
+            flashActive: true,
+            flashColor: prev.overdriveActive ? 'cyan' : 'white',
+          };
+        }
+
+        if (prev.endingTriggered) {
           return prev;
         }
 
@@ -895,10 +918,16 @@ export const useGameState = () => {
 
     const scoreInterval = setInterval(() => {
       setGameState(prev => {
-        if (prev.overdriveActive) return prev;
+        if (prev.overdriveActive || prev.endingTriggered) return prev;
         const newScore = Math.max(0, prev.score - 5);
-        if (newScore <= 0) {
-          return prev;
+        if (newScore < 10) {
+          return {
+            ...prev,
+            score: 0,
+            endingTriggered: true,
+            flashActive: true,
+            flashColor: 'white',
+          };
         }
         return { ...prev, score: newScore };
       });
@@ -906,6 +935,27 @@ export const useGameState = () => {
 
     return () => clearInterval(scoreInterval);
   }, [gameState.isPlaying, gameState.isPaused, gameState.overdriveActive]);
+
+  // Handle flash completion → transition to ending screen
+  const onFlashComplete = useCallback(() => {
+    setGameState(prev => {
+      if (!prev.endingTriggered) return prev;
+      
+      if (prev.overdriveActive) {
+        setSecretVictory(true);
+      }
+      
+      return {
+        ...prev,
+        isPlaying: false,
+        isGameOver: true,
+        score: 0,
+        overdriveActive: false,
+        flashActive: false,
+      };
+    });
+    setScreen('game-over');
+  }, []);
 
   // Check for game over conditions (only when lives reach 0)
   useEffect(() => {
@@ -915,26 +965,8 @@ export const useGameState = () => {
         endGame();
         return;
       }
-
-      // Check win condition - score reaches 0
-      if (gameState.score <= 0) {
-        if (gameState.overdriveActive) {
-          // Overdrive victory → secret ending
-          setSecretVictory(true);
-          setGameState(prev => ({
-            ...prev,
-            isPlaying: false,
-            isGameOver: true,
-            score: 0,
-            overdriveActive: false,
-          }));
-          setScreen('game-over');
-        } else {
-          endGame();
-        }
-      }
     }
-  }, [gameState.isPlaying, gameState.isGameOver, gameState.lives, gameState.score, gameState.overdriveActive, endGame]);
+  }, [gameState.isPlaying, gameState.isGameOver, gameState.lives, gameState.overdriveActive, endGame]);
 
   const goToMenu = useCallback(() => {
     setScreen('menu');
@@ -992,6 +1024,7 @@ export const useGameState = () => {
     endGame,
     triggerSecretVictory,
     secretVictory,
+    onFlashComplete,
     setSoundCallbacks,
     toggleHitboxDebug: DEBUG_MODE ? toggleHitboxDebug : undefined,
     // Export collision system utilities for debug visualization
