@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Play, Trophy, Rocket } from 'lucide-react';
+import EndingGallery from './EndingGallery';
 
 interface MenuScreenProps {
   highScore: number;
@@ -14,6 +15,8 @@ const MenuScreen = ({ highScore, onStart }: MenuScreenProps) => {
       exit={{ opacity: 0 }}
       className="flex flex-col items-center justify-center min-h-screen px-4 relative z-10"
     >
+      {/* Ending Gallery */}
+      <EndingGallery />
       {/* Title */}
       <motion.div
         initial={{ y: -50, opacity: 0 }}
