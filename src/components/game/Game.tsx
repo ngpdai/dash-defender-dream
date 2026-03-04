@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { unlockEnding } from '@/lib/galleryStorage';
 import StarField from './StarField';
 import MenuScreen from './MenuScreen';
 import ShipSelectScreen from './ShipSelectScreen';
@@ -75,10 +76,18 @@ const Game = () => {
     onFlashComplete();
   };
 
-  // Play game over sound when screen changes to game-over
+  // Play game over sound and unlock gallery ending when screen changes to game-over
   useEffect(() => {
     if (screen === 'game-over') {
       handleGameOver();
+      // Unlock the appropriate gallery ending
+      if (secretVictory) {
+        unlockEnding('secret');
+      } else if (gameState.score <= 0) {
+        unlockEnding('victory');
+      } else {
+        unlockEnding('gameover');
+      }
     }
   }, [screen]);
 
