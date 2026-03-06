@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Trophy, Rocket } from 'lucide-react';
 import EndingGallery from './EndingGallery';
-import EasterEggModal from './EasterEggModal';
+import { SecretCodeModal } from './EasterEggModal';
 import { loadGallery, isAllEndingsUnlocked, loadEasterEgg, saveEasterEgg } from '@/lib/galleryStorage';
 
 interface MenuScreenProps {
