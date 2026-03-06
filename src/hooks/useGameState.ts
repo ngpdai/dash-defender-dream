@@ -938,10 +938,13 @@ export const useGameState = () => {
 
   // Handle flash completion → transition to ending screen
   const onFlashComplete = useCallback(() => {
+    let isSecretEnding = false;
+    
     setGameState(prev => {
       if (!prev.endingTriggered) return prev;
       
       if (prev.overdriveActive) {
+        isSecretEnding = true;
         setSecretVictory(true);
       }
       
@@ -955,18 +958,14 @@ export const useGameState = () => {
       };
     });
 
-    // Victory (non-secret) → show ending scene viewer
-    // Secret or collision → go straight to game-over
-    setGameState(prev => {
-      if (prev.overdriveActive) {
-        // secret ending
+    // Use setTimeout to ensure state has been read
+    setTimeout(() => {
+      if (isSecretEnding) {
         setScreen('game-over');
       } else {
-        // normal victory → ending scene
         setScreen('ending-scene');
       }
-      return prev;
-    });
+    }, 0);
   }, []);
 
   // Check for game over conditions (only when lives reach 0)
