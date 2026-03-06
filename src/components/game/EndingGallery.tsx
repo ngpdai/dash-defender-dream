@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, X, Image as ImageIcon } from 'lucide-react';
+import { Lock, X, Image as ImageIcon, Unlock } from 'lucide-react';
 import { loadGallery, clearNewUnlock, type GalleryData } from '@/lib/galleryStorage';
 import endingGameover from '@/assets/ending-gameover.png';
 import endingVictory from '@/assets/ending-victory.png';
 import endingSecret from '@/assets/ending-secret.png';
+import trueEnding from '@/assets/true-ending.png';
 
 interface SlotConfig {
   key: 'gameover' | 'victory' | 'secret';
@@ -46,12 +47,16 @@ const SLOTS: SlotConfig[] = [
   },
 ];
 
-const EndingGallery = () => {
+interface EndingGalleryProps {
+  showUnlockButton?: boolean;
+}
+
+const EndingGallery = ({ showUnlockButton = false }: EndingGalleryProps) => {
   const [gallery, setGallery] = useState<GalleryData>(loadGallery);
   const [modalOpen, setModalOpen] = useState(false);
   const [viewingSlot, setViewingSlot] = useState<SlotConfig | null>(null);
+  const [showSecretViewer, setShowSecretViewer] = useState(false);
 
-  // Refresh gallery data when modal opens
   useEffect(() => {
     if (modalOpen) setGallery(loadGallery());
   }, [modalOpen]);
@@ -60,7 +65,6 @@ const EndingGallery = () => {
 
   const handleSlotClick = (slot: SlotConfig) => {
     if (!gallery[slot.key]) return;
-    // Clear "NEW" badge
     if (gallery.newUnlocks.includes(slot.key)) {
       const updated = clearNewUnlock(slot.key);
       setGallery(updated);
@@ -70,7 +74,7 @@ const EndingGallery = () => {
 
   return (
     <>
-      {/* Compact gallery button on main menu */}
+      {/* Compact gallery button */}
       <motion.button
         initial={{ opacity: 0, x: 20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -88,9 +92,7 @@ const EndingGallery = () => {
             <div
               key={slot.key}
               className={`w-8 h-8 rounded overflow-hidden border ${
-                gallery[slot.key]
-                  ? `${slot.borderColor} border-opacity-80`
-                  : 'border-muted-foreground/30'
+                gallery[slot.key] ? `${slot.borderColor} border-opacity-80` : 'border-muted-foreground/30'
               }`}
             >
               {gallery[slot.key] ? (
@@ -131,79 +133,109 @@ const EndingGallery = () => {
 
               <AnimatePresence mode="wait">
                 {viewingSlot ? (
-                  <motion.div
-                    key="detail"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex flex-col items-center"
-                  >
-                    <button
-                      onClick={() => setViewingSlot(null)}
-                      className="self-start font-rajdhani text-sm text-primary hover:underline mb-3"
-                    >
-                      ← Back
-                    </button>
-                    <div
-                      className={`rounded-lg overflow-hidden border-2 ${viewingSlot.borderColor} mb-4 max-h-[50vh]`}
-                      style={{ boxShadow: viewingSlot.glowColor }}
-                    >
+                  <motion.div key="detail" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col items-center">
+                    <button onClick={() => setViewingSlot(null)} className="self-start font-rajdhani text-sm text-primary hover:underline mb-3">← Back</button>
+                    <div className={`rounded-lg overflow-hidden border-2 ${viewingSlot.borderColor} mb-4 max-h-[50vh]`} style={{ boxShadow: viewingSlot.glowColor }}>
                       <img src={viewingSlot.image} alt={viewingSlot.label} className="w-full h-auto max-h-[50vh] object-contain" />
                     </div>
                     <h3 className="font-orbitron text-lg text-foreground mb-1">{viewingSlot.label}</h3>
                     <p className="font-rajdhani text-sm text-muted-foreground text-center">{viewingSlot.description}</p>
                   </motion.div>
                 ) : (
-                  <motion.div
-                    key="grid"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="grid grid-cols-3 gap-4"
-                  >
-                    {SLOTS.map(slot => {
-                      const unlocked = gallery[slot.key];
-                      const isNew = gallery.newUnlocks.includes(slot.key);
-                      return (
+                  <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <div className="grid grid-cols-3 gap-4">
+                      {SLOTS.map(slot => {
+                        const unlocked = gallery[slot.key];
+                        const isNew = gallery.newUnlocks.includes(slot.key);
+                        return (
+                          <motion.button
+                            key={slot.key}
+                            whileHover={unlocked ? { scale: 1.08 } : undefined}
+                            whileTap={unlocked ? { scale: 0.95 } : undefined}
+                            onClick={() => handleSlotClick(slot)}
+                            className={`relative flex flex-col items-center gap-2 p-2 rounded-lg border transition-all ${
+                              unlocked ? `${slot.borderColor} cursor-pointer hover:brightness-110` : 'border-muted-foreground/20 cursor-default opacity-50'
+                            }`}
+                            style={unlocked ? { boxShadow: slot.glowColor } : undefined}
+                          >
+                            <div className="w-full aspect-[3/4] rounded overflow-hidden bg-muted/20 relative">
+                              {unlocked ? (
+                                <img src={slot.image} alt={slot.label} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Lock className="w-6 h-6 text-muted-foreground/40" />
+                                </div>
+                              )}
+                              {isNew && (
+                                <motion.span animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1, repeat: Infinity }} className="absolute top-1 right-1 bg-secondary text-secondary-foreground text-[9px] font-orbitron px-1.5 py-0.5 rounded-full">
+                                  NEW!
+                                </motion.span>
+                              )}
+                            </div>
+                            <span className="font-rajdhani text-xs text-foreground">{unlocked ? slot.label : slot.lockedLabel}</span>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+
+                    {/* UNLOCK button — gold, only when both conditions met */}
+                    {showUnlockButton && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="flex justify-center mt-6"
+                      >
                         <motion.button
-                          key={slot.key}
-                          whileHover={unlocked ? { scale: 1.08 } : undefined}
-                          whileTap={unlocked ? { scale: 0.95 } : undefined}
-                          onClick={() => handleSlotClick(slot)}
-                          className={`relative flex flex-col items-center gap-2 p-2 rounded-lg border transition-all ${
-                            unlocked
-                              ? `${slot.borderColor} cursor-pointer hover:brightness-110`
-                              : 'border-muted-foreground/20 cursor-default opacity-50'
-                          }`}
-                          style={unlocked ? { boxShadow: slot.glowColor } : undefined}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setShowSecretViewer(true)}
+                          className="flex items-center gap-2 px-8 py-3 rounded-lg font-orbitron font-bold text-sm border-2 transition-all cursor-pointer"
+                          style={{
+                            color: '#FFD700',
+                            borderColor: '#FFD700',
+                            boxShadow: '0 0 16px rgba(255, 215, 0, 0.4)',
+                            background: 'rgba(255, 215, 0, 0.08)',
+                          }}
                         >
-                          <div className="w-full aspect-[3/4] rounded overflow-hidden bg-muted/20 relative">
-                            {unlocked ? (
-                              <img src={slot.image} alt={slot.label} className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Lock className="w-6 h-6 text-muted-foreground/40" />
-                              </div>
-                            )}
-                            {isNew && (
-                              <motion.span
-                                animate={{ scale: [1, 1.15, 1] }}
-                                transition={{ duration: 1, repeat: Infinity }}
-                                className="absolute top-1 right-1 bg-secondary text-secondary-foreground text-[9px] font-orbitron px-1.5 py-0.5 rounded-full"
-                              >
-                                NEW!
-                              </motion.span>
-                            )}
-                          </div>
-                          <span className="font-rajdhani text-xs text-foreground">
-                            {unlocked ? slot.label : slot.lockedLabel}
-                          </span>
+                          <Unlock className="w-5 h-5" />
+                          UNLOCK
                         </motion.button>
-                      );
-                    })}
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Secret Content Viewer */}
+      <AnimatePresence>
+        {showSecretViewer && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-background/90 backdrop-blur-md p-4"
+            onClick={() => setShowSecretViewer(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              className="relative max-w-md w-full"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setShowSecretViewer(false)} className="absolute -top-3 -right-3 z-10 bg-space-dark border border-muted-foreground/30 rounded-full p-1.5 text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+              <div className="rounded-xl overflow-hidden border-2 border-yellow-400" style={{ boxShadow: '0 0 30px rgba(255, 215, 0, 0.4)' }}>
+                <img src={trueEnding} alt="Secret content" className="w-full h-auto object-contain" />
+              </div>
+              <p className="font-orbitron text-sm text-center mt-4" style={{ color: '#FFD700', textShadow: '0 0 8px rgba(255,215,0,0.5)' }}>
+                SECRET CONTENT UNLOCKED
+              </p>
             </motion.div>
           </motion.div>
         )}
