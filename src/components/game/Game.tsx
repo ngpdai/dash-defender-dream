@@ -131,6 +131,16 @@ const Game = () => {
           />
         )}
 
+        {screen === 'ending-scene' && (
+          <EndingSceneViewer
+            key="ending-scene"
+            onComplete={() => {
+              unlockEnding('victory');
+              goToMenu();
+            }}
+          />
+        )}
+
         {screen === 'game-over' && (
           <GameOverScreen
             key="game-over"
