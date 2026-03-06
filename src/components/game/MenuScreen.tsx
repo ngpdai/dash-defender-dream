@@ -1,6 +1,9 @@
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Trophy, Rocket } from 'lucide-react';
 import EndingGallery from './EndingGallery';
+import EasterEggModal from './EasterEggModal';
+import { loadGallery, isAllEndingsUnlocked, loadEasterEgg, saveEasterEgg } from '@/lib/galleryStorage';
 
 interface MenuScreenProps {
   highScore: number;
@@ -8,6 +11,29 @@ interface MenuScreenProps {
 }
 
 const MenuScreen = ({ highScore, onStart }: MenuScreenProps) => {
+  const [modalOpen, setModalOpen] = useState(false);
+  const [showSubscribe, setShowSubscribe] = useState(false);
+  const [eggEntered, setEggEntered] = useState(() => loadEasterEgg().codeEntered);
+  const [allUnlocked, setAllUnlocked] = useState(() => isAllEndingsUnlocked(loadGallery()));
+
+  // Refresh gallery state periodically (when returning to menu)
+  useEffect(() => {
+    setAllUnlocked(isAllEndingsUnlocked(loadGallery()));
+    setEggEntered(loadEasterEgg().codeEntered);
+  }, []);
+
+  const handleHighScoreClick = () => {
+    if (!allUnlocked) return;
+    setModalOpen(true);
+  };
+
+  const handleCorrectCode = () => {
+    saveEasterEgg({ codeEntered: true });
+    setEggEntered(true);
+    setShowSubscribe(true);
+    setTimeout(() => setShowSubscribe(false), 5000);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -16,7 +42,11 @@ const MenuScreen = ({ highScore, onStart }: MenuScreenProps) => {
       className="flex flex-col items-center justify-center min-h-screen px-4 relative z-10"
     >
       {/* Ending Gallery */}
-      <EndingGallery />
+      <EndingGallery showUnlockButton={allUnlocked && eggEntered} />
+
+      {/* Easter Egg Modal */}
+      <EasterEggModal open={modalOpen} onClose={() => setModalOpen(false)} onCorrectCode={handleCorrectCode} />
+
       {/* Title */}
       <motion.div
         initial={{ y: -50, opacity: 0 }}
@@ -36,14 +66,38 @@ const MenuScreen = ({ highScore, onStart }: MenuScreenProps) => {
         <p className="font-rajdhani text-lg md:text-xl text-muted-foreground mt-4 tracking-wider">
           SPACE OBSTACLE RUNNER
         </p>
+
+        {/* Subscribe text animation */}
+        <AnimatePresence>
+          {showSubscribe && (
+            <motion.p
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              transition={{ duration: 0.5 }}
+              className="font-rajdhani italic text-2xl mt-4"
+              style={{ color: '#FFD700', textShadow: '0 0 12px rgba(255, 215, 0, 0.7)' }}
+            >
+              <motion.span animate={{ opacity: [0.7, 1, 0.7] }} transition={{ duration: 2, repeat: Infinity }}>
+                ✨ Subscribe ✨
+              </motion.span>
+            </motion.p>
+          )}
+        </AnimatePresence>
       </motion.div>
 
-      {/* High Score */}
+      {/* High Score — clickable when 3/3 */}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ delay: 0.4 }}
-        className="flex items-center gap-3 mb-8 px-6 py-3 bg-space-medium/50 rounded-full border border-primary/30"
+        onClick={handleHighScoreClick}
+        className={`flex items-center gap-3 mb-8 px-6 py-3 bg-space-medium/50 rounded-full border transition-all ${
+          allUnlocked
+            ? 'border-primary/60 cursor-pointer hover:border-primary hover:brightness-125'
+            : 'border-primary/30'
+        }`}
+        style={allUnlocked ? { boxShadow: '0 0 10px rgba(0,255,255,0.2)' } : undefined}
       >
         <Trophy className="w-5 h-5 text-secondary" />
         <span className="font-orbitron text-lg text-foreground">
