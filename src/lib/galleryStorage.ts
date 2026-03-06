@@ -1,13 +1,37 @@
 const STORAGE_KEY = '25000km-gallery';
+const EASTER_EGG_KEY = '25000km-easteregg';
 
 export interface GalleryData {
   gameover: boolean;
   victory: boolean;
   secret: boolean;
-  newUnlocks: string[]; // endings unlocked this session but not yet seen in gallery
+  newUnlocks: string[];
+}
+
+export interface EasterEggData {
+  codeEntered: boolean;
 }
 
 const DEFAULT: GalleryData = { gameover: false, victory: false, secret: false, newUnlocks: [] };
+const DEFAULT_EGG: EasterEggData = { codeEntered: false };
+
+export const loadEasterEgg = (): EasterEggData => {
+  try {
+    const raw = localStorage.getItem(EASTER_EGG_KEY);
+    if (!raw) return { ...DEFAULT_EGG };
+    return { ...DEFAULT_EGG, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_EGG };
+  }
+};
+
+export const saveEasterEgg = (data: EasterEggData) => {
+  localStorage.setItem(EASTER_EGG_KEY, JSON.stringify(data));
+};
+
+export const isAllEndingsUnlocked = (data: GalleryData): boolean => {
+  return data.gameover && data.victory && data.secret;
+};
 
 export const loadGallery = (): GalleryData => {
   try {
