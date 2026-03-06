@@ -84,4 +84,4 @@ export interface GameState {
   flashColor: 'white' | 'cyan';
 }
 
-export type GameScreen = 'menu' | 'ship-select' | 'game' | 'game-over';
+export type GameScreen = 'menu' | 'ship-select' | 'game' | 'game-over' | 'ending-scene';

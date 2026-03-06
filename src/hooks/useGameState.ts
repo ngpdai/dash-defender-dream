@@ -954,7 +954,19 @@ export const useGameState = () => {
         flashActive: false,
       };
     });
-    setScreen('game-over');
+
+    // Victory (non-secret) → show ending scene viewer
+    // Secret or collision → go straight to game-over
+    setGameState(prev => {
+      if (prev.overdriveActive) {
+        // secret ending
+        setScreen('game-over');
+      } else {
+        // normal victory → ending scene
+        setScreen('ending-scene');
+      }
+      return prev;
+    });
   }, []);
 
   // Check for game over conditions (only when lives reach 0)
