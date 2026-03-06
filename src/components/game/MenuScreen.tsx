@@ -45,7 +45,7 @@ const MenuScreen = ({ highScore, onStart }: MenuScreenProps) => {
       <EndingGallery showUnlockButton={allUnlocked && eggEntered} />
 
       {/* Easter Egg Modal */}
-      <EasterEggModal open={modalOpen} onClose={() => setModalOpen(false)} onCorrectCode={handleCorrectCode} />
+      <SecretCodeModal open={modalOpen} onClose={() => setModalOpen(false)} onCorrectCode={handleCorrectCode} />
 
       {/* Title */}
       <motion.div
