@@ -186,7 +186,7 @@ const EndingGallery = ({ showUnlockButton = false }: EndingGalleryProps) => {
                         className="flex justify-center mt-6"
                       >
                         <motion.button
-                          whileHover={{ scale: 1.05, brightness: 1.2 }}
+                          whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => setShowSecretViewer(true)}
                           className="flex items-center gap-2 px-8 py-3 rounded-lg font-orbitron font-bold text-sm border-2 transition-all cursor-pointer"
