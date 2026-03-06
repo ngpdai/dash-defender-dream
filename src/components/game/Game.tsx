@@ -8,6 +8,7 @@ import MenuScreen from './MenuScreen';
 import ShipSelectScreen from './ShipSelectScreen';
 import GameScreen from './GameScreen';
 import GameOverScreen from './GameOverScreen';
+import EndingSceneViewer from './EndingSceneViewer';
 
 const Game = () => {
   const {
@@ -76,18 +77,18 @@ const Game = () => {
     onFlashComplete();
   };
 
-  // Play game over sound and unlock gallery ending when screen changes to game-over
+  // Play game over sound and unlock gallery ending when screen changes to game-over or ending-scene
   useEffect(() => {
     if (screen === 'game-over') {
       handleGameOver();
-      // Unlock the appropriate gallery ending
       if (secretVictory) {
         unlockEnding('secret');
-      } else if (gameState.score <= 0) {
-        unlockEnding('victory');
       } else {
         unlockEnding('gameover');
       }
+    }
+    if (screen === 'ending-scene') {
+      playVictorySound();
     }
   }, [screen]);
 
@@ -127,6 +128,16 @@ const Game = () => {
             isDebugMode={isDebugMode}
             onSecretVictory={triggerSecretVictory}
             onFlashComplete={handleFlashComplete}
+          />
+        )}
+
+        {screen === 'ending-scene' && (
+          <EndingSceneViewer
+            key="ending-scene"
+            onComplete={() => {
+              unlockEnding('victory');
+              goToMenu();
+            }}
           />
         )}
 
