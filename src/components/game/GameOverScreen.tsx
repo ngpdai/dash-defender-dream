@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, RotateCcw, Home, Sparkles } from 'lucide-react';
-import trueEndingImage from '@/assets/true-ending.png';
+import secretEndingImage from '@/assets/ending-secret.png';
 
 interface GameOverScreenProps {
   score: number;
