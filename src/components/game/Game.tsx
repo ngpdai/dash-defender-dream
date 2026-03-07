@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useDebugShortcuts } from '@/hooks/useDebugShortcuts';
 import { unlockEnding } from '@/lib/galleryStorage';
 import StarField from './StarField';
 import MenuScreen from './MenuScreen';
