@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
+import { useDebugShortcuts } from '@/hooks/useDebugShortcuts';
 import { unlockEnding } from '@/lib/galleryStorage';
 import StarField from './StarField';
 import MenuScreen from './MenuScreen';
@@ -43,6 +44,11 @@ const Game = () => {
     playGameOverSound,
     playVictorySound,
   } = useSoundEffects();
+
+  const { notifications, godMode, isDebugEnabled } = useDebugShortcuts({
+    goToMenu,
+    goToShipSelect,
+  });
 
   // Set up sound callbacks
   useEffect(() => {
@@ -117,7 +123,7 @@ const Game = () => {
         {screen === 'game' && (
           <GameScreen
             key="game"
-            gameState={gameState}
+            gameState={godMode ? { ...gameState, isInvincible: true } : gameState}
             shipData={selectedShipData}
             onMove={movePlayer}
             onStart={handleStart}
@@ -154,6 +160,26 @@ const Game = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Debug notifications */}
+      {isDebugEnabled && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none">
+          <AnimatePresence>
+            {notifications.map(n => (
+              <motion.div
+                key={n.id}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="px-4 py-2 rounded-lg bg-black/80 border border-cyan-500/50 font-orbitron text-xs tracking-wider"
+                style={{ color: '#00FFFF' }}
+              >
+                [DEBUG] {n.message}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 };
