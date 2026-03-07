@@ -45,6 +45,11 @@ const Game = () => {
     playVictorySound,
   } = useSoundEffects();
 
+  const { notifications, godMode, isDebugEnabled } = useDebugShortcuts({
+    goToMenu,
+    goToShipSelect,
+  });
+
   // Set up sound callbacks
   useEffect(() => {
     setSoundCallbacks({
