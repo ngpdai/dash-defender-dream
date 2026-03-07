@@ -160,6 +160,26 @@ const Game = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* Debug notifications */}
+      {isDebugEnabled && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center gap-2 pointer-events-none">
+          <AnimatePresence>
+            {notifications.map(n => (
+              <motion.div
+                key={n.id}
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="px-4 py-2 rounded-lg bg-black/80 border border-cyan-500/50 font-orbitron text-xs tracking-wider"
+                style={{ color: '#00FFFF' }}
+              >
+                [DEBUG] {n.message}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
     </div>
   );
 };
