@@ -123,7 +123,7 @@ const Game = () => {
         {screen === 'game' && (
           <GameScreen
             key="game"
-            gameState={gameState}
+            gameState={godMode ? { ...gameState, isInvincible: true } : gameState}
             shipData={selectedShipData}
             onMove={movePlayer}
             onStart={handleStart}
