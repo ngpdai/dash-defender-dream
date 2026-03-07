@@ -93,7 +93,7 @@ const GameOverScreen = ({
           transition={{ delay: 0.4 }}
           className="mb-8 rounded-xl overflow-hidden border-2 border-primary/50 box-glow-cyan max-w-md"
         >
-          <img src={trueEndingImage} alt="True Ending" className="w-full h-auto" />
+          <img src={secretEndingImage} alt="True Ending" className="w-full h-auto" />
         </motion.div>
 
         <motion.div
