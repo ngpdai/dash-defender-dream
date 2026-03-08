@@ -1,9 +1,8 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { unlockEnding } from '@/lib/galleryStorage';
-import { useDebugShortcuts } from '@/hooks/useDebugShortcuts';
 import StarField from './StarField';
 import MenuScreen from './MenuScreen';
 import ShipSelectScreen from './ShipSelectScreen';
@@ -31,7 +30,6 @@ const Game = () => {
     triggerSecretVictory,
     secretVictory,
     onFlashComplete,
-    triggerEndingScene,
   } = useGameState();
 
   const {
@@ -45,17 +43,6 @@ const Game = () => {
     playGameOverSound,
     playVictorySound,
   } = useSoundEffects();
-
-  // Debug shortcut: Ctrl+Shift+2 triggers ending 2 cutscene from menu
-  const handleDebugEnding2 = useCallback(() => {
-    playVictorySound();
-    triggerEndingScene();
-  }, [playVictorySound, triggerEndingScene]);
-
-  useDebugShortcuts({
-    isMenuScreen: screen === 'menu',
-    onTriggerEnding2: handleDebugEnding2,
-  });
 
   // Set up sound callbacks
   useEffect(() => {
