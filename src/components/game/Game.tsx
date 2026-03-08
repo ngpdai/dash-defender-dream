@@ -34,12 +34,6 @@ const Game = () => {
     triggerEndingScene,
   } = useGameState();
 
-  // Debug shortcut: Ctrl+Shift+2 triggers ending 2 cutscene from menu
-  const handleDebugEnding2 = useCallback(() => {
-    playVictorySound();
-    triggerEndingScene();
-  }, [playVictorySound, triggerEndingScene]);
-
   const {
     playMoveSound,
     playCollisionSound,
@@ -51,6 +45,17 @@ const Game = () => {
     playGameOverSound,
     playVictorySound,
   } = useSoundEffects();
+
+  // Debug shortcut: Ctrl+Shift+2 triggers ending 2 cutscene from menu
+  const handleDebugEnding2 = useCallback(() => {
+    playVictorySound();
+    triggerEndingScene();
+  }, [playVictorySound, triggerEndingScene]);
+
+  useDebugShortcuts({
+    isMenuScreen: screen === 'menu',
+    onTriggerEnding2: handleDebugEnding2,
+  });
 
   // Set up sound callbacks
   useEffect(() => {
