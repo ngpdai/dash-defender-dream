@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, X, Image as ImageIcon, Unlock } from 'lucide-react';
 import { loadGallery, clearNewUnlock, type GalleryData } from '@/lib/galleryStorage';
 import endingGameover from '@/assets/ending-gameover.png';
-import endingVictory from '@/assets/ending-victory.png';
+import endingVictory from '@/assets/ending2-scene4.png';
 import endingSecret from '@/assets/ending-secret.png';
 import trueEnding from '@/assets/true-ending.png';
 
