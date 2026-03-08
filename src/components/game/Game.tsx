@@ -31,7 +31,14 @@ const Game = () => {
     triggerSecretVictory,
     secretVictory,
     onFlashComplete,
+    triggerEndingScene,
   } = useGameState();
+
+  // Debug shortcut: Ctrl+Shift+2 triggers ending 2 cutscene from menu
+  const handleDebugEnding2 = useCallback(() => {
+    playVictorySound();
+    triggerEndingScene();
+  }, [playVictorySound, triggerEndingScene]);
 
   const {
     playMoveSound,
