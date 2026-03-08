@@ -1021,6 +1021,10 @@ export const useGameState = () => {
     restartGame();
   }, [restartGame]);
 
+  const triggerEndingScene = useCallback(() => {
+    setScreen('ending-scene');
+  }, []);
+
   return {
     screen,
     gameState,
@@ -1038,6 +1042,7 @@ export const useGameState = () => {
     onFlashComplete,
     setSoundCallbacks,
     toggleHitboxDebug: DEBUG_MODE ? toggleHitboxDebug : undefined,
+    triggerEndingScene,
     // Export collision system utilities for debug visualization
     getDebugInfo,
     collisionConfig: COLLISION_CONFIG,
