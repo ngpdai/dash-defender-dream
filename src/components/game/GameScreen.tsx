@@ -459,43 +459,6 @@ const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound
             </span>
           </div>
           
-          {/* Debug Hitbox + God Mode Toggle - Only visible in debug mode */}
-          {canShowDebug && onToggleHitboxDebug && (
-            <button
-              onClick={onToggleHitboxDebug}
-              className={`flex items-center gap-1 px-2 py-1 rounded border transition-all ${
-                gameState.showHitboxes 
-                  ? 'border-2' 
-                  : 'bg-muted/20 border-muted/30 text-muted-foreground'
-              }`}
-              style={gameState.showHitboxes ? {
-                backgroundColor: 'rgba(0, 255, 255, 0.3)',
-                borderColor: '#00FFFF',
-                color: '#00FFFF',
-                boxShadow: '0 0 10px rgba(0, 255, 255, 0.4)',
-              } : undefined}
-              title={gameState.showHitboxes ? 'Click to disable Dev Mode' : 'Click for Hitbox + God Mode'}
-            >
-              {gameState.showHitboxes ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
-              <span className="text-xs ml-1 font-bold">DEV</span>
-            </button>
-          )}
-          
-          {/* God Mode Indicator */}
-          {canShowDebug && gameState.showHitboxes && (
-            <motion.span
-              animate={{ opacity: [0.5, 1, 0.5] }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="text-xs font-bold font-orbitron"
-              style={{ color: '#FFD700' }}
-            >
-              ⚡ GOD MODE
-            </motion.span>
-          )}
         </div>
       </div>
 

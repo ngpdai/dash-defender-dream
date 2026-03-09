@@ -90,7 +90,7 @@ export interface SecretCodeModalProps {
   onCorrectCode: () => void;
 }
 
-const SECRET_CODE = 'manlybadasshere';
+const SECRET_CODE = 'manlybadasshero';
 
 export const SecretCodeModal = ({ open, onClose, onCorrectCode }: SecretCodeModalProps) => {
   const [value, setValue] = useState('');
