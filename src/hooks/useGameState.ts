@@ -703,8 +703,8 @@ export const useGameState = () => {
             return entity.y > -10; // Remove when off top of screen
           });
 
-        // Skip collision checks during overdrive (invincible)
-        if (!prev.overdriveActive) {
+        // Skip collision checks during overdrive or god mode (DEV)
+        if (!prev.overdriveActive && !prev.showHitboxes) {
           // Check obstacle collisions
           let hitObstacle = false;
           for (const obs of updatedObstacles) {

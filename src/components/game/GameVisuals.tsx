@@ -3,7 +3,7 @@ import speederShipImg from '@/assets/speeder-ship.png';
 import titanShipImg from '@/assets/titan-ship.png';
 
 // Titan MK-II - Heavy, sturdy battleship design
-export const TitanShip = ({ isInvincible }: { isInvincible?: boolean }) => (
+export const TitanShip = ({ isInvincible, godMode }: { isInvincible?: boolean; godMode?: boolean }) => (
   <motion.div
     animate={{ 
       y: [0, -3, 0],
@@ -15,6 +15,18 @@ export const TitanShip = ({ isInvincible }: { isInvincible?: boolean }) => (
     }}
     className="relative w-[60px] h-[84px] md:w-[72px] md:h-[96px]"
   >
+    {/* God Mode gold glow */}
+    {godMode && (
+      <motion.div
+        animate={{ opacity: [0.5, 0.8, 0.5] }}
+        transition={{ duration: 1.5, repeat: Infinity }}
+        className="absolute inset-0 -m-5 rounded-full"
+        style={{ 
+          boxShadow: '0 0 25px rgba(255, 215, 0, 0.7), 0 0 50px rgba(255, 215, 0, 0.3)',
+          background: 'radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%)',
+        }}
+      />
+    )}
     <img 
       src={titanShipImg} 
       alt="Titan MK-II" 

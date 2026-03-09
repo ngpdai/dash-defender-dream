@@ -628,9 +628,9 @@ const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound
             )}
             {/* Ship - custom visual component */}
             {shipData?.id === 'speeder' ? (
-              <SpeederShip isInvincible={gameState.isInvincible} overdriveActive={gameState.overdriveActive} />
+              <SpeederShip isInvincible={gameState.isInvincible} overdriveActive={gameState.overdriveActive} godMode={canShowDebug && gameState.showHitboxes} />
             ) : (
-              <TitanShip isInvincible={gameState.isInvincible} />
+              <TitanShip isInvincible={gameState.isInvincible} godMode={canShowDebug && gameState.showHitboxes} />
             )}
           </div>
         </motion.div>
