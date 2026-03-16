@@ -728,6 +728,24 @@ const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound
           ))}
         </AnimatePresence>
 
+        {/* ========================================
+            POWER-UPS - Vật phẩm hồi shield/HP
+            ======================================== */}
+        <AnimatePresence>
+          {gameState.powerUps.map(powerUp => (
+            <PowerUpComponent key={powerUp.id} powerUp={powerUp} />
+          ))}
+        </AnimatePresence>
+
+        {/* ========================================
+            POWER-UP FLOATING TEXT - Phản hồi thu thập
+            ======================================== */}
+        <AnimatePresence>
+          {gameState.powerUpPopups.map(popup => (
+            <PowerUpPopupComponent key={popup.id} popup={popup} />
+          ))}
+        </AnimatePresence>
+
         {/* Flash Effect Overlay */}
         <AnimatePresence>
           {gameState.flashActive && (
