@@ -103,6 +103,12 @@ export const useGameState = () => {
     endingTriggered: false,
     flashActive: false,
     flashColor: 'white',
+    // ========================================
+    // POWER-UP: Khởi tạo trạng thái ban đầu
+    // ========================================
+    powerUps: [],                    // Chưa có power-up nào trên màn hình
+    powerUpPopups: [],               // Chưa có floating text nào
+    lastPowerUpMilestone: INITIAL_SCORE, // Milestone đầu tiên = điểm khởi đầu (25000)
   });
 
   // Anti-camping tracking
