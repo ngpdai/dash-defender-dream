@@ -186,7 +186,14 @@ export const useGameState = () => {
       endingTriggered: false,
       flashActive: false,
       flashColor: 'white',
+      // ========================================
+      // POWER-UP: Reset khi bắt đầu game mới
+      // ========================================
+      powerUps: [],                    // Xóa tất cả power-up cũ
+      powerUpPopups: [],               // Xóa tất cả floating text cũ
+      lastPowerUpMilestone: INITIAL_SCORE, // Reset milestone về điểm khởi đầu
     }));
+    console.log('[POWER-UP] System reset');
   }, [gameState.selectedShip]);
 
   const movePlayer = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
