@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm } from '@/types/game';
+import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm, PowerUp, PowerUpPopup } from '@/types/game';
 import { 
   LANES, 
   checkEntityCollision as checkCollisionSystem, 
