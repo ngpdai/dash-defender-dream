@@ -107,6 +107,12 @@ export interface GameState {
   endingTriggered: boolean;
   flashActive: boolean;
   flashColor: 'white' | 'cyan';
+  // ========================================
+  // HỆ THỐNG POWER-UP
+  // ========================================
+  powerUps: PowerUp[];              // Danh sách power-up đang tồn tại trên màn hình
+  powerUpPopups: PowerUpPopup[];    // Danh sách floating text phản hồi
+  lastPowerUpMilestone: number;     // Milestone cuối cùng đã spawn power-up (VD: 24000, 23000...)
 }
 
 export type GameScreen = 'menu' | 'ship-select' | 'game' | 'game-over' | 'ending-scene';
