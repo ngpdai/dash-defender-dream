@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Shield, Gauge, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup } from '@/types/game';
+import { GameState, Ship, Obstacle, SuddenEntity, DodgePopup, PowerUp, PowerUpPopup } from '@/types/game';
 import EasterEggModal from './EasterEggModal';
 import { AsteroidVisual, UFOVisual, TitanShip, SpeederShip } from './GameVisuals';
 import { 
