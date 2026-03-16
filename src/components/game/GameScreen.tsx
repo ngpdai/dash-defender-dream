@@ -181,7 +181,101 @@ const DodgePopupComponent = ({ popup }: { popup: DodgePopup }) => {
   );
 };
 
-const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
+// ========================================
+// POWER-UP VISUAL COMPONENT
+// ========================================
+// Vật phẩm hồi shield/HP - 3 lớp: Glow cyan + Viền vàng + Tâm đỏ hồng
+// Có hiệu ứng lơ lửng (floating) và glow pulsing
+const PowerUpComponent = ({ powerUp }: { powerUp: PowerUp }) => {
+  return (
+    <div
+      className="absolute"
+      style={{
+        left: `${powerUp.x}%`,
+        top: `${powerUp.y}%`,
+      }}
+    >
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1, y: [0, -5, 0, 5, 0] }}
+        transition={{
+          scale: { duration: 0.3 },
+          opacity: { duration: 0.3 },
+          y: { duration: 2, repeat: Infinity, ease: 'easeInOut' }, // Hiệu ứng lơ lửng
+        }}
+        className="transform -translate-x-1/2 -translate-y-1/2 relative"
+        style={{ width: 40, height: 40 }}
+      >
+        {/* Lớp 1 (ngoài cùng): Glow effect màu cyan - pulsing */}
+        <motion.div
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: 'radial-gradient(circle, rgba(0,255,255,0.6) 0%, transparent 70%)',
+            filter: 'blur(8px)',
+            transform: 'scale(1.8)',
+          }}
+        />
+        {/* Lớp 2 (giữa): Vòng tròn viền màu vàng gold */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            border: '3px solid #FFD700',
+            boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)',
+          }}
+        />
+        {/* Lớp 3 (trong): Tâm màu đỏ/hồng */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: 24,
+            height: 24,
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'radial-gradient(circle, #FF0066 0%, #CC0052 100%)',
+            boxShadow: '0 0 8px rgba(255, 0, 102, 0.6)',
+          }}
+        />
+      </motion.div>
+    </div>
+  );
+};
+
+// ========================================
+// POWER-UP FLOATING TEXT COMPONENT
+// ========================================
+// Text bay lên từ vị trí tàu khi thu thập power-up
+// Màu xanh lá = hồi thành công, cam = đã full
+const PowerUpPopupComponent = ({ popup }: { popup: PowerUpPopup }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 1, y: 0 }}
+      animate={{ opacity: 0, y: -40 }}
+      transition={{ duration: 1, ease: 'easeOut' }}
+      className="absolute pointer-events-none z-30"
+      style={{
+        left: `${popup.x}%`,
+        top: `${popup.y}%`,
+        transform: 'translate(-50%, -50%)',
+      }}
+    >
+      <span
+        className="font-orbitron text-sm font-bold whitespace-nowrap"
+        style={{
+          color: popup.color === 'green' ? '#00FF00' : '#FFA500',
+          textShadow: popup.color === 'green'
+            ? '0 0 10px rgba(0,255,0,0.8)'
+            : '0 0 10px rgba(255,165,0,0.8)',
+        }}
+      >
+        {popup.text}
+      </span>
+    </motion.div>
+  );
+};
+
   if (!storm.active) return null;
 
   return (
