@@ -276,6 +276,7 @@ const PowerUpPopupComponent = ({ popup }: { popup: PowerUpPopup }) => {
   );
 };
 
+const TerraStormOverlay = ({ storm }: { storm: GameState['terraStorm'] }) => {
   if (!storm.active) return null;
 
   return (
