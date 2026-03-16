@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm } from '@/types/game';
+import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm, PowerUp, PowerUpPopup } from '@/types/game';
 import { 
   LANES, 
   checkEntityCollision as checkCollisionSystem, 
@@ -103,6 +103,12 @@ export const useGameState = () => {
     endingTriggered: false,
     flashActive: false,
     flashColor: 'white',
+    // ========================================
+    // POWER-UP: Khởi tạo trạng thái ban đầu
+    // ========================================
+    powerUps: [],                    // Chưa có power-up nào trên màn hình
+    powerUpPopups: [],               // Chưa có floating text nào
+    lastPowerUpMilestone: INITIAL_SCORE, // Milestone đầu tiên = điểm khởi đầu (25000)
   });
 
   // Anti-camping tracking
@@ -180,7 +186,14 @@ export const useGameState = () => {
       endingTriggered: false,
       flashActive: false,
       flashColor: 'white',
+      // ========================================
+      // POWER-UP: Reset khi bắt đầu game mới
+      // ========================================
+      powerUps: [],                    // Xóa tất cả power-up cũ
+      powerUpPopups: [],               // Xóa tất cả floating text cũ
+      lastPowerUpMilestone: INITIAL_SCORE, // Reset milestone về điểm khởi đầu
     }));
+    console.log('[POWER-UP] System reset');
   }, [gameState.selectedShip]);
 
   const movePlayer = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
@@ -789,6 +802,134 @@ export const useGameState = () => {
           popup => Date.now() - popup.createdAt < 1000
         );
 
+        // ========================================
+        // HỆ THỐNG POWER-UP: CẬP NHẬT MỖI FRAME
+        // ========================================
+
+        // --- Bước 1: Kiểm tra milestone để spawn power-up mới ---
+        // Power-up xuất hiện mỗi khi điểm giảm qua mốc 1000km
+        // VD: 24000 → 23000 → 22000 → ... → 1000
+        let updatedPowerUps = [...prev.powerUps];
+        let updatedPowerUpPopups = [...prev.powerUpPopups];
+        let newLastMilestone = prev.lastPowerUpMilestone;
+
+        // Tính milestone tiếp theo cần đạt (làm tròn xuống bội số 1000)
+        const nextMilestone = Math.floor(prev.lastPowerUpMilestone / 1000) * 1000 - 1000;
+        
+        // Nếu điểm đã giảm qua milestone tiếp theo VÀ milestone hợp lệ (>= 1000)
+        if (nextMilestone >= 1000 && newScore <= nextMilestone && prev.lastPowerUpMilestone > nextMilestone) {
+          // Vị trí X ngẫu nhiên, tránh sát biên (15% - 85%)
+          const spawnX = 15 + Math.random() * 70;
+          
+          const newPowerUp: PowerUp = {
+            id: `powerup-${Date.now()}-${Math.random()}`,
+            x: spawnX,
+            y: -5,           // Bắt đầu ngoài màn hình phía trên
+            spawnTime: Date.now(),
+            collected: false,
+          };
+          updatedPowerUps.push(newPowerUp);
+          newLastMilestone = nextMilestone;
+          console.log(`[POWER-UP] Spawned at score ${newScore}, milestone ${nextMilestone}`);
+        }
+
+        // --- Bước 2: Di chuyển power-up xuống dưới ---
+        // Tốc độ rơi: 0.03% mỗi ms (~2px/frame ở 60FPS)
+        const powerUpFallSpeed = 0.03;
+        updatedPowerUps = updatedPowerUps.map(pu => ({
+          ...pu,
+          y: pu.y + powerUpFallSpeed * deltaTime,
+        }));
+
+        // --- Bước 3: Kiểm tra va chạm giữa tàu và power-up ---
+        // Sử dụng khoảng cách Euclidean (circular collision)
+        const powerUpRadius = 5;   // Bán kính hitbox power-up (phần trăm)
+        const shipRadius = 5;      // Bán kính hitbox tàu (phần trăm)
+        const collectionThreshold = powerUpRadius + shipRadius; // Ngưỡng va chạm
+
+        updatedPowerUps = updatedPowerUps.filter(pu => {
+          // Xóa power-up đã ra khỏi màn hình (Y > 110%)
+          if (pu.y > 110) return false;
+
+          // Tính khoảng cách Euclidean giữa tâm tàu và tâm power-up
+          const dx = prev.playerPosition.x - pu.x;
+          const dy = prev.playerPosition.y - pu.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          // Nếu khoảng cách < ngưỡng → có va chạm, thu thập power-up
+          if (distance < collectionThreshold) {
+            // Xử lý thu thập dựa trên loại tàu
+            if (prev.selectedShip === 'speeder') {
+              // ========================================
+              // SPEEDER X-1: HỒI SHIELD
+              // ========================================
+              if (!prev.hasShield) {
+                // Shield = 0 → hồi về 1
+                prev.hasShield = true; // Mutate trực tiếp vì đang trong callback
+                updatedPowerUpPopups.push({
+                  id: `pup-${Date.now()}-${Math.random()}`,
+                  x: prev.playerPosition.x,
+                  y: prev.playerPosition.y - 5,
+                  text: 'SHIELD RESTORED!',
+                  color: 'green',
+                  createdAt: Date.now(),
+                });
+                console.log('[POWER-UP] Speeder shield restored: 0 → 1');
+              } else {
+                // Shield đã full (= 1), hiển thị cảnh báo
+                updatedPowerUpPopups.push({
+                  id: `pup-${Date.now()}-${Math.random()}`,
+                  x: prev.playerPosition.x,
+                  y: prev.playerPosition.y - 5,
+                  text: 'SHIELD FULL',
+                  color: 'orange',
+                  createdAt: Date.now(),
+                });
+                console.log('[POWER-UP] Speeder shield already full');
+              }
+            } else if (prev.selectedShip === 'tank') {
+              // ========================================
+              // TITAN MK-II: HỒI HP
+              // ========================================
+              if (prev.lives < 2) {
+                // HP < 2 → tăng lên 1
+                prev.lives = prev.lives + 1;
+                updatedPowerUpPopups.push({
+                  id: `pup-${Date.now()}-${Math.random()}`,
+                  x: prev.playerPosition.x,
+                  y: prev.playerPosition.y - 5,
+                  text: `HP RESTORED! (${prev.lives}/2)`,
+                  color: 'green',
+                  createdAt: Date.now(),
+                });
+                console.log(`[POWER-UP] Titan HP restored: ${prev.lives - 1} → ${prev.lives}`);
+              } else {
+                // HP đã full (= 2), hiển thị cảnh báo
+                updatedPowerUpPopups.push({
+                  id: `pup-${Date.now()}-${Math.random()}`,
+                  x: prev.playerPosition.x,
+                  y: prev.playerPosition.y - 5,
+                  text: 'HP FULL (2/2)',
+                  color: 'orange',
+                  createdAt: Date.now(),
+                });
+                console.log('[POWER-UP] Titan HP already full');
+              }
+            }
+            return false; // Xóa power-up sau khi thu thập
+          }
+          return true; // Giữ lại power-up chưa thu thập
+        });
+
+        // --- Bước 4: Xóa floating text đã hết thời gian sống (1 giây) ---
+        updatedPowerUpPopups = updatedPowerUpPopups.filter(
+          popup => Date.now() - popup.createdAt < 1000
+        );
+
+        // ========================================
+        // KẾT THÚC HỆ THỐNG POWER-UP
+        // ========================================
+
         if (newScore < 10 && !prev.endingTriggered) {
           return {
             ...prev,
@@ -803,6 +944,9 @@ export const useGameState = () => {
             endingTriggered: true,
             flashActive: true,
             flashColor: prev.overdriveActive ? 'cyan' : 'white',
+            powerUps: [],
+            powerUpPopups: updatedPowerUpPopups,
+            lastPowerUpMilestone: newLastMilestone,
           };
         }
 
@@ -820,6 +964,9 @@ export const useGameState = () => {
           distance: prev.distance + verticalSpeed * deltaTime,
           isInvincible: stillInvincible,
           dodgePopups: activePopups,
+          powerUps: updatedPowerUps,
+          powerUpPopups: updatedPowerUpPopups,
+          lastPowerUpMilestone: newLastMilestone,
         };
       });
 
