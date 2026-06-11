@@ -1,3 +1,10 @@
+// ============================================================================
+// GameOverScreen.tsx — Màn hình hiển thị sau khi 1 ván chơi kết thúc.
+// Hỗ trợ 3 trạng thái: thua thường (game over), thắng thường (score về 0),
+// và thắng bí mật (secret victory — sau khi mở easter egg). Hiển thị điểm,
+// high score mới, nút chơi lại / về menu, và modal easter egg "?" để mở
+// secret ending nếu đúng đáp án.
+// ============================================================================
 import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, RotateCcw, Home, Sparkles } from 'lucide-react';
