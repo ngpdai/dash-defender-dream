@@ -1,18 +1,26 @@
 /**
- * Collision System - Single Source of Truth
- * 
- * ARCHITECTURE:
- * - All entities use a unified Transform interface
- * - Positions are in PERCENTAGE (0-100%) of game area
- * - Sizes are also in PERCENTAGE for consistency
- * - Anchor is CENTER-CENTER for all entities (0.5, 0.5)
- * - Colliders are BoxCollider (AABB) only
- * 
- * SIZING RULES:
- * - Collider = 85% of visual sprite size (forgiving but fair)
- * - No transparent padding included
- * - Explicitly defined for each entity type
+ * ============================================================================
+ * collision.ts — HỆ THỐNG VA CHẠM (Single Source of Truth)
+ * ============================================================================
+ *
+ * MỤC ĐÍCH: Cung cấp 1 nguồn dữ liệu duy nhất cho việc tính va chạm,
+ * tránh tình trạng "thấy chạm mà game không tính" hoặc ngược lại.
+ *
+ * KIẾN TRÚC:
+ * - Mọi entity dùng chung interface Transform.
+ * - Tọa độ tính theo PHẦN TRĂM (0-100%) của khung game → responsive mọi
+ *   kích thước màn hình, không cần đổi logic theo pixel.
+ * - Anchor (điểm gốc) luôn là TÂM-TÂM (0.5, 0.5).
+ * - Collider chỉ dùng BoxCollider (AABB — hộp chữ nhật theo trục).
+ *
+ * QUY TẮC KÍCH THƯỚC:
+ * - Hộp va chạm = ~38-55% kích thước sprite (cho người chơi cảm giác
+ *   "thoát chết trong gang tấc" thay vì bị tính chạm oan).
+ * - Không tính phần padding trong suốt của ảnh.
+ * - Mỗi loại entity có scale riêng (xem COLLIDER_SCALES).
  */
+
+
 
 // Game area reference dimensions (used for calculations)
 export const GAME_AREA = {
