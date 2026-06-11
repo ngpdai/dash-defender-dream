@@ -1,9 +1,19 @@
+// ============================================================================
+// useSoundEffects.ts
+// Hook tạo TOÀN BỘ âm thanh game bằng Web Audio API — KHÔNG dùng file mp3/wav.
+// Mỗi tiếng động được "tổng hợp" trực tiếp bằng oscillator + noise buffer
+// → file nhẹ, không cần asset, đậm chất retro/8-bit "goofy".
+// ============================================================================
 import { useCallback, useRef } from 'react';
 
-// Goofy Web Audio API sound generator
+// Hook chính: trả về object chứa các hàm phát âm thanh, được Game.tsx gọi
+// tại đúng thời điểm xảy ra sự kiện (di chuyển, va chạm, nổ, thắng, thua...).
 export const useSoundEffects = () => {
+  // Giữ 1 AudioContext duy nhất xuyên suốt vòng đời component (lazy-init).
   const audioContextRef = useRef<AudioContext | null>(null);
 
+  // Lấy AudioContext — tạo mới nếu chưa có. Có fallback webkitAudioContext
+  // cho các trình duyệt Safari/iOS cũ.
   const getAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -11,7 +21,7 @@ export const useSoundEffects = () => {
     return audioContextRef.current;
   }, []);
 
-  // Goofy "boing" sound for movement
+  // Tiếng "boing" ngắn khi tàu di chuyển — sóng sine quét tần số 300→600→200Hz.
   const playMoveSound = useCallback(() => {
     const ctx = getAudioContext();
     const osc = ctx.createOscillator();
