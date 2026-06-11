@@ -1,3 +1,17 @@
+// ============================================================================
+// GameScreen.tsx — Màn hình GAMEPLAY chính.
+//
+// Vai trò:
+//   - Render khung game: tàu người chơi + vật cản + sudden entity + HUD
+//     (score, mạng, shield, distance, cảnh báo bão Terra).
+//   - Lắng nghe input bàn phím (WASD / mũi tên) và cảm ứng (swipe) để
+//     gọi onMove() lên hook useGameState.
+//   - Hiển thị overlay hitbox (debug) khi bật chế độ debug.
+//   - Hiển thị overlay đếm ngược + flash chuyển ending.
+//
+// File này CHỈ phụ trách phần hiển thị + nhận input — toàn bộ logic
+// game (va chạm, spawn, score) nằm trong useGameState.ts.
+// ============================================================================
 import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Shield, Gauge, AlertTriangle, Eye, EyeOff } from 'lucide-react';
@@ -243,6 +257,7 @@ const RadarPulse = ({ x, y, isPlaying }: { x: number; y: number; isPlaying: bool
   const [pulses, setPulses] = useState<number[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Setup interval cập nhật countdown khi đang bão Terra (cảnh báo "X giây").
   useEffect(() => {
     if (!isPlaying) {
       setPulses([]);
@@ -265,6 +280,7 @@ const RadarPulse = ({ x, y, isPlaying }: { x: number; y: number; isPlaying: bool
   }, [isPlaying]);
 
   // Clean expired pulses
+  // Lắng nghe BÀN PHÍM: WASD hoặc mũi tên → gọi onMove() để di chuyển tàu.
   useEffect(() => {
     if (pulses.length === 0) return;
     const timer = setTimeout(() => {
@@ -305,6 +321,7 @@ const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound
   const canShowDebug = isDebugMode && DEBUG_MODE;
 
   // Keyboard controls
+  // Lắng nghe phím tắt debug (chỉ chạy khi DEBUG_MODE bật).
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!gameState.isPlaying) {
@@ -352,11 +369,13 @@ const GameScreenComponent = ({ gameState, shipData, onMove, onStart, onMoveSound
   }, [gameState.isPlaying, onMove, onStart, onMoveSound]);
 
   // Touch controls
+  // Cảm ứng: ghi nhận điểm bắt đầu chạm để tính hướng swipe khi kết thúc.
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     const touch = e.touches[0];
     touchStartRef.current = { x: touch.clientX, y: touch.clientY };
   }, []);
 
+  // Cảm ứng: khi rời tay → tính delta X/Y, suy ra hướng swipe và gọi onMove().
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
       if (!touchStartRef.current) return;

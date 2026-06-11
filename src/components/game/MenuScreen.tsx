@@ -1,3 +1,8 @@
+// ============================================================================
+// MenuScreen.tsx — Màn hình MENU CHÍNH của game.
+// Hiển thị tiêu đề, high score, nút START, và quản lý easter egg + gallery
+// các ending đã mở khóa.
+// ============================================================================
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Trophy, Rocket } from 'lucide-react';
@@ -5,34 +10,44 @@ import EndingGallery from './EndingGallery';
 import { SecretCodeModal } from './EasterEggModal';
 import { loadGallery, isAllEndingsUnlocked, loadEasterEgg, saveEasterEgg } from '@/lib/galleryStorage';
 
+// Props: nhận high score hiện tại + callback khi user bấm START.
 interface MenuScreenProps {
   highScore: number;
   onStart: () => void;
 }
 
 const MenuScreen = ({ highScore, onStart }: MenuScreenProps) => {
+  // State quản lý modal nhập mã bí mật và animation "Subscribe".
   const [modalOpen, setModalOpen] = useState(false);
   const [showSubscribe, setShowSubscribe] = useState(false);
+  // Đọc trạng thái easter egg & ending đã mở từ localStorage (chỉ chạy 1 lần khi mount).
   const [eggEntered, setEggEntered] = useState(() => loadEasterEgg().codeEntered);
   const [allUnlocked, setAllUnlocked] = useState(() => isAllEndingsUnlocked(loadGallery()));
 
-  // Refresh gallery state periodically (when returning to menu)
+  // Mỗi lần component mount (quay về menu) → refresh lại trạng thái gallery
+  // để phản ánh các ending mới mở khóa trong lần chơi vừa rồi.
   useEffect(() => {
     setAllUnlocked(isAllEndingsUnlocked(loadGallery()));
     setEggEntered(loadEasterEgg().codeEntered);
   }, []);
 
+  // Chỉ cho phép click vào "HIGH SCORE" để mở modal mã bí mật khi
+  // người chơi đã mở hết 3 ending (đây là điều kiện kích hoạt easter egg).
   const handleHighScoreClick = () => {
     if (!allUnlocked) return;
     setModalOpen(true);
   };
 
+  // Xử lý khi user nhập đúng mã bí mật "ManlyBadassHero":
+  // lưu vào localStorage, mở khóa nút bí mật, và hiện text "Subscribe" 5s.
   const handleCorrectCode = () => {
     saveEasterEgg({ codeEntered: true });
     setEggEntered(true);
     setShowSubscribe(true);
     setTimeout(() => setShowSubscribe(false), 5000);
   };
+
+
 
   return (
     <motion.div

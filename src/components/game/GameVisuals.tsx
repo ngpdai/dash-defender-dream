@@ -1,3 +1,9 @@
+// ============================================================================
+// GameVisuals.tsx — Tổng hợp các component VISUAL của entity trong game.
+// Gồm: ShipPreview (xem trước tàu ở màn chọn tàu), PlayerShip (tàu người
+// chơi với animation thruster), Asteroid/Debris/Mine (vật cản), và các
+// hiệu ứng phụ. Tất cả dùng motion + ảnh PNG từ src/assets.
+// ============================================================================
 import { motion } from 'framer-motion';
 import speederShipImg from '@/assets/speeder-ship.png';
 import titanShipImg from '@/assets/titan-ship.png';

@@ -1,26 +1,43 @@
+// ============================================================================
+// useGameState.ts — TRÁI TIM của game.
+//
+// Hook tập trung quản lý TOÀN BỘ trạng thái game: màn hình hiện tại, tàu
+// được chọn, vị trí player, danh sách vật cản, điểm số, mạng sống, bão
+// Terra, hệ thống chống "camp" (núp 1 góc), buff overdrive, ending...
+//
+// Cách tính điểm ĐẶC BIỆT: bắt đầu ở 25000, mỗi giây trừ dần — score thấp
+// hơn = chơi xa hơn. Người chơi "thắng" khi score giảm về 0.
+//
+// Cấu trúc file:
+//   1) Hằng số cấu hình (DEBUG, invincibility, zones, ships, storm...)
+//   2) Hàm khởi tạo + state chính
+//   3) Các callback gameplay (move, spawn, collision, trigger ending)
+//   4) Game loop chính trong useEffect (chạy mỗi frame ~60fps)
+//   5) Hàm điều hướng màn hình (menu / ship-select / restart)
+// ============================================================================
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm } from '@/types/game';
-import { 
-  LANES, 
-  checkEntityCollision as checkCollisionSystem, 
+import {
+  LANES,
+  checkEntityCollision as checkCollisionSystem,
   EntityType,
   getColliderSize,
   getDebugInfo,
   COLLISION_CONFIG,
 } from '@/lib/collision';
 
-// Debug flag - temporarily enabled to show hitboxes
+// Cờ debug — bật để hiển thị overlay hitbox (hộp va chạm) cho dev kiểm tra.
 const DEBUG_MODE = true;
 
-// Invincibility time after getting hit (in ms)
+// Thời gian bất tử sau khi bị trúng đòn (ms) — tránh bị "combo" nhiều hit liên tiếp.
 const INVINCIBILITY_DURATION = 1500;
 
-// Anti-camping system constants
-const CAMPING_THRESHOLD_MS = 3000; // Time in same zone to trigger anti-camp
-const CORNER_ZONE_SIZE = 25; // Percentage of screen considered "corner zone"
-const EDGE_ZONE_SIZE = 15; // Percentage of screen considered "edge zone"
+// --- Hệ thống chống CAMP (núp 1 chỗ để né cheese) ---
+const CAMPING_THRESHOLD_MS = 3000; // Đứng yên 1 vùng quá 3s sẽ bị "trừng phạt"
+const CORNER_ZONE_SIZE = 25; // % màn hình tính là vùng "góc"
+const EDGE_ZONE_SIZE = 15;   // % màn hình tính là vùng "rìa"
 
-// Corner/Edge zone definitions (percentages)
+// Tọa độ các vùng góc / rìa (theo % khung game) — dùng để phát hiện camp.
 const ZONES = {
   topLeft: { xMin: 0, xMax: 30, yMin: 0, yMax: 35 },
   topRight: { xMin: 70, xMax: 100, yMin: 0, yMax: 35 },
@@ -30,9 +47,11 @@ const ZONES = {
   rightEdge: { xMin: 100 - EDGE_ZONE_SIZE, xMax: 100, yMin: 0, yMax: 100 },
 };
 
-// Extended lanes including edge positions for corner coverage
+// Các "lane" mở rộng có thêm 2 lane ngoài rìa (10, 90) để spawn vật cản
+// đuổi theo người chơi khi họ trốn vào góc.
 const EXTENDED_LANES = [10, 17, 32, 50, 68, 83, 90] as const;
 
+// Cấu hình 2 loại tàu cố định trong game.
 const SHIPS: Record<ShipType, Ship> = {
   speeder: {
     id: 'speeder',
@@ -54,25 +73,30 @@ const SHIPS: Record<ShipType, Ship> = {
   },
 };
 
+// Score khởi đầu — đếm NGƯỢC về 0 trong khi chơi.
 const INITIAL_SCORE = 25000;
 
-// Best score = lowest remaining distance (traveled the farthest)
+// Best score = số NHỎ NHẤT từng đạt (vì càng nhỏ = càng đi xa).
 const getBestScore = (): number => {
   const saved = localStorage.getItem('2500km-bestscore');
-  // If no saved score, return initial score (worst possible)
+  // Chưa có save thì mặc định = INITIAL_SCORE (tệ nhất).
   return saved ? parseInt(saved, 10) : INITIAL_SCORE;
 };
 
+// Lưu best score xuống localStorage để giữ qua các phiên chơi.
 const saveBestScore = (score: number): void => {
   localStorage.setItem('2500km-bestscore', score.toString());
 };
 
+// Trạng thái khởi đầu của sự kiện bão Terra (tắt, intensity = 0).
 const INITIAL_TERRA_STORM: TerraStorm = {
   active: false,
   startTime: 0,
   duration: 5000,
   intensity: 0,
 };
+
+
 
 export const useGameState = () => {
   const [screen, setScreen] = useState<GameScreen>('menu');
@@ -125,6 +149,8 @@ export const useGameState = () => {
 
   const selectedShipData = gameState.selectedShip ? SHIPS[gameState.selectedShip] : null;
 
+  // Cho phép Game.tsx đăng ký các callback âm thanh (shield break, nổ, bão...)
+  // được gọi tự động khi event tương ứng xảy ra trong game loop.
   const setSoundCallbacks = useCallback((callbacks: {
     onShieldBreak?: () => void;
     onCollision?: () => void;
@@ -139,6 +165,7 @@ export const useGameState = () => {
     if (callbacks.onIncoming) onIncomingRef.current = callbacks.onIncoming;
   }, []);
 
+  // User chọn tàu → lưu lựa chọn vào state và chuyển sang màn hình "game".
   const selectShip = useCallback((shipType: ShipType) => {
     const ship = SHIPS[shipType];
     setGameState(prev => ({
@@ -150,6 +177,8 @@ export const useGameState = () => {
     setScreen('game');
   }, []);
 
+  // Bắt đầu chính thức ván chơi: reset toàn bộ state về INITIAL,
+  // đặt mạng/shield theo tàu đã chọn, cho tàu xuất hiện ở giữa-dưới màn hình.
   const startGame = useCallback(() => {
     if (!gameState.selectedShip) return;
     
@@ -183,6 +212,8 @@ export const useGameState = () => {
     }));
   }, [gameState.selectedShip]);
 
+  // Di chuyển tàu theo 1 trong 4 hướng (up/down/left/right).
+  // Bước nhảy tính theo speed của tàu × hằng số, có chặn không cho ra ngoài viền.
   const movePlayer = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
     if (!gameState.isPlaying || gameState.isPaused) return;
 
@@ -226,11 +257,13 @@ export const useGameState = () => {
   }, [gameState.isPlaying, gameState.isPaused, gameState.terraStorm, selectedShipData]);
 
   // Calculate obstacle density multiplier based on game time (20% increase every 60 seconds)
+  // Tính hệ số "mật độ" vật cản theo thời gian — càng chơi lâu càng đông.
   const getDensityMultiplier = useCallback((gameTime: number): number => {
     return 1 + Math.floor(gameTime / 60) * 0.2;
   }, []);
 
   // Detect which zone the player is in
+  // Xác định người chơi đang ở vùng nào (góc/rìa/giữa) dựa trên (x, y).
   const getPlayerZone = useCallback((x: number, y: number): string | null => {
     for (const [zoneName, zone] of Object.entries(ZONES)) {
       if (x >= zone.xMin && x <= zone.xMax && y >= zone.yMin && y <= zone.yMax) {
@@ -241,6 +274,8 @@ export const useGameState = () => {
   }, []);
 
   // Update camping detection
+  // Theo dõi xem người chơi có đang "camp" 1 vùng quá lâu hay không.
+  // Nếu có → tăng campingIntensity để hệ thống spawn nhắm bắn vào vùng đó.
   const updateCampingDetection = useCallback((x: number, y: number) => {
     const currentZone = getPlayerZone(x, y);
     const now = Date.now();
@@ -272,6 +307,8 @@ export const useGameState = () => {
   const MAX_VERTICAL_OBSTACLES = 3;
 
   // Get lane targeting player's zone for anti-camping
+  // Chọn lane mục tiêu để spawn vật cản — ưu tiên lane gần người chơi nếu
+  // họ đang camp (anti-cheese), nếu không thì chọn lane ngẫu nhiên.
   const getTargetedLane = useCallback((playerX: number, playerY: number, campingIntensity: number): number => {
     // If camping intensity is high, target player's position
     if (campingIntensity > 0.3 && Math.random() < campingIntensity) {
@@ -298,6 +335,9 @@ export const useGameState = () => {
     return EXTENDED_LANES[Math.floor(Math.random() * EXTENDED_LANES.length)];
   }, [getPlayerZone]);
 
+  // Sinh vật cản mới (asteroid/debris/mine) — logic phức tạp nhất game:
+  // tính mật độ theo thời gian, chọn lane theo anti-camp, random loại,
+  // tránh chồng lên vật cản hiện có. Được gọi định kỳ trong game loop.
   const spawnObstacles = useCallback(() => {
     setGameState(prev => {
       const playerX = prev.playerPosition.x;
@@ -485,6 +525,8 @@ export const useGameState = () => {
     });
   }, [getDensityMultiplier, getPlayerZone, getTargetedLane, updateCampingDetection]);
 
+  // Sinh "sudden entity" — vật thể xuất hiện đột ngột giữa màn hình,
+  // có cảnh báo trước khi nổ (giống mìn UFO).
   const spawnSuddenEntity = useCallback(() => {
     onIncomingRef.current();
     
@@ -505,6 +547,8 @@ export const useGameState = () => {
     }));
   }, []);
 
+  // Kích hoạt sự kiện "bão Terra" — kéo dài ~5s, làm rung màn hình
+  // và tăng tốc độ + mật độ vật cản, phát tiếng cảnh báo.
   const triggerTerraStorm = useCallback(() => {
     onStormRef.current();
     
@@ -534,6 +578,7 @@ export const useGameState = () => {
 
   // Collision detection using the unified collision system
   // Uses CENTER-CENTER anchor and same coordinate system as rendering
+  // Kiểm tra va chạm giữa tàu người chơi và 1 obstacle (dùng AABB).
   const checkCollision = useCallback((
     playerPos: { x: number; y: number }, 
     obstacle: Obstacle, 
@@ -546,6 +591,7 @@ export const useGameState = () => {
     return checkCollisionSystem(playerPos, playerType, obstacle, obstacleType);
   }, []);
 
+  // Kiểm tra va chạm với sudden entity (chỉ tính khi entity đang nổ).
   const checkSuddenEntityCollision = useCallback((
     playerPos: { x: number; y: number }, 
     entity: SuddenEntity, 
@@ -559,6 +605,8 @@ export const useGameState = () => {
 
   const [secretVictory, setSecretVictory] = useState(false);
 
+  // Kết thúc ván chơi: cập nhật best score nếu phá kỷ lục, dừng game loop,
+  // chuyển sang màn hình game-over.
   const endGame = useCallback(() => {
     setGameState(prev => {
       // Lower score = better (traveled farther)
@@ -577,6 +625,8 @@ export const useGameState = () => {
     setScreen('game-over');
   }, []);
 
+  // Trigger "secret victory" — kết thúc thắng bí mật khi user nhập đúng
+  // easter egg ở Game Over. Bật flash trắng/cyan rồi chuyển scene.
   const triggerSecretVictory = useCallback(() => {
     // Instead of immediately ending, activate overdrive buffs
     setGameState(prev => {
@@ -594,6 +644,9 @@ export const useGameState = () => {
   }, []);
 
   // Game loop with synchronized speed multiplier
+  // ★ GAME LOOP CHÍNH — chạy mỗi frame (~60fps) khi đang trong màn 'game'.
+  // Cập nhật: thời gian, score giảm dần, vị trí vật cản, va chạm,
+  // anti-camp, sudden entity, bão Terra, dodge popup, ending trigger.
   useEffect(() => {
     if (!gameState.isPlaying || gameState.isPaused) {
       if (gameLoopRef.current) {
@@ -937,6 +990,7 @@ export const useGameState = () => {
   }, [gameState.isPlaying, gameState.isPaused, gameState.overdriveActive]);
 
   // Handle flash completion → transition to ending screen
+  // Callback gọi khi animation flash kết thúc — chuyển sang scene ending.
   const onFlashComplete = useCallback(() => {
     let isSecretEnding = false;
     
@@ -979,6 +1033,7 @@ export const useGameState = () => {
     }
   }, [gameState.isPlaying, gameState.isGameOver, gameState.lives, gameState.overdriveActive, endGame]);
 
+  // Quay về màn hình MENU + reset state về mặc định.
   const goToMenu = useCallback(() => {
     setScreen('menu');
     setGameState(prev => ({
@@ -989,10 +1044,12 @@ export const useGameState = () => {
     }));
   }, []);
 
+  // Chuyển sang màn hình CHỌN TÀU.
   const goToShipSelect = useCallback(() => {
     setScreen('ship-select');
   }, []);
 
+  // Chơi lại với cùng con tàu đã chọn lần trước.
   const restartGame = useCallback(() => {
     if (gameState.selectedShip) {
       setScreen('game');
@@ -1001,6 +1058,7 @@ export const useGameState = () => {
   }, [gameState.selectedShip, startGame]);
 
   // Toggle hitbox debug - only available in debug mode
+  // Bật/tắt overlay hitbox debug (hữu ích để chỉnh collision khi dev).
   const toggleHitboxDebug = useCallback(() => {
     if (!DEBUG_MODE) return; // No-op in production
     

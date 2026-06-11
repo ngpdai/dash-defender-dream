@@ -1,3 +1,8 @@
+// ============================================================================
+// ShipSelectScreen.tsx — Màn hình CHỌN TÀU trước khi vào game.
+// Hiển thị 2 card tàu (Speeder / Titan) với preview hình, chỉ số (speed,
+// shield, HP) và mô tả. Click vào card sẽ chốt lựa chọn và bắt đầu ván chơi.
+// ============================================================================
 import { motion } from 'framer-motion';
 import { ArrowLeft, Zap, Shield, Heart } from 'lucide-react';
 import { Ship, ShipType } from '@/types/game';
