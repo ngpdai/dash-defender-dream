@@ -1,3 +1,9 @@
+// ============================================================================
+// EndingSceneViewer.tsx — Trình chiếu cinematic ENDING chiến thắng.
+// Hiển thị tuần tự 4 ảnh tĩnh (scene1→scene4); người chơi tap màn hình
+// để chuyển ảnh. Có khóa debounce 300ms tránh double-tap nhảy 2 ảnh.
+// Ảnh cuối hiện nút "MAIN MENU" thay vì tap-to-continue.
+// ============================================================================
 import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Home } from 'lucide-react';
