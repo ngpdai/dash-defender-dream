@@ -1,3 +1,9 @@
+// ============================================================================
+// Game.tsx — Component GỐC điều phối toàn bộ game.
+// Vai trò: chọn màn hình nào đang hiển thị (menu / chọn tàu / chơi /
+// game over / ending cinematic), kết nối hook gameState với hook âm thanh,
+// và quản lý việc unlock ending trong gallery khi kết thúc 1 ván.
+// ============================================================================
 import { useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
