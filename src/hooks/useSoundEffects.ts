@@ -42,12 +42,12 @@ export const useSoundEffects = () => {
     osc.stop(ctx.currentTime + 0.15);
   }, [getAudioContext]);
 
-  // Tiếng "splat" khi va chạm vật cản — dùng noise buffer (nhiễu trắng)
-  // qua lowpass filter giảm dần để tạo cảm giác "bụp" trầm.
+  // Tiếng "splat" khi va chạm — noise burst đi qua lowpass giảm dần
+  // tạo cảm giác "bụp" trầm như đụng vào kim loại.
   const playCollisionSound = useCallback(() => {
     const ctx = getAudioContext();
     
-    // Noise burst
+    // Tạo buffer nhiễu trắng dài 0.3s, biên độ giảm dần theo hàm mũ.
     const bufferSize = ctx.sampleRate * 0.3;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -58,6 +58,7 @@ export const useSoundEffects = () => {
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
     
+    // Lowpass quét từ 1000Hz xuống 100Hz để âm "trầm dần".
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.setValueAtTime(1000, ctx.currentTime);
@@ -74,7 +75,7 @@ export const useSoundEffects = () => {
     noise.start(ctx.currentTime);
   }, [getAudioContext]);
 
-  // Goofy "whoosh" for obstacle passing
+  // Tiếng "whoosh" khi né được vật cản — sawtooth quét xuống nhanh.
   const playDodgeSound = useCallback(() => {
     const ctx = getAudioContext();
     const osc = ctx.createOscillator();
@@ -94,7 +95,8 @@ export const useSoundEffects = () => {
     osc.stop(ctx.currentTime + 0.1);
   }, [getAudioContext]);
 
-  // Goofy "pop" for shield break
+  // Tiếng "pop" khi khiên (shield) vỡ — kết hợp 2 oscillator square + triangle
+  // chồng lên nhau để tạo âm "rạn nứt" có chiều sâu.
   const playShieldBreakSound = useCallback(() => {
     const ctx = getAudioContext();
     const osc = ctx.createOscillator();
@@ -122,11 +124,12 @@ export const useSoundEffects = () => {
     osc2.stop(ctx.currentTime + 0.25);
   }, [getAudioContext]);
 
-  // Goofy "storm warning" sound
+  // Tiếng "ầm ầm" cảnh báo bão Terra — sawtooth tần số thấp 40-80Hz
+  // qua lowpass 200Hz để tạo rung trầm 1.5 giây.
   const playStormSound = useCallback(() => {
     const ctx = getAudioContext();
     
-    // Low rumble
+    // Rung trầm (rumble).
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
@@ -151,11 +154,12 @@ export const useSoundEffects = () => {
     osc.stop(ctx.currentTime + 1.5);
   }, [getAudioContext]);
 
-  // Goofy "explosion" for sudden entities
+  // Tiếng nổ khi sudden entity phát nổ — noise burst lớn + "bwop" sine
+  // trầm chồng lên để mô phỏng tiếng "bùm-bụp".
   const playExplosionSound = useCallback(() => {
     const ctx = getAudioContext();
     
-    // Explosion noise
+    // Noise burst nửa giây (nhiễu trắng giảm dần).
     const bufferSize = ctx.sampleRate * 0.5;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -179,7 +183,7 @@ export const useSoundEffects = () => {
     filter.connect(gain);
     gain.connect(ctx.destination);
     
-    // Add a goofy "bwop" on top
+    // Lớp "bwop" sine trầm chồng lên để có chiều sâu.
     const osc = ctx.createOscillator();
     const oscGain = ctx.createGain();
     osc.connect(oscGain);
@@ -197,7 +201,8 @@ export const useSoundEffects = () => {
     osc.stop(ctx.currentTime + 0.3);
   }, [getAudioContext]);
 
-  // Goofy "incoming" warning beep
+  // 3 tiếng "beep beep beep" cảnh báo có vật thể đang lao tới —
+  // tần số tăng dần (800, 1000, 1200Hz) để tạo cảm giác khẩn cấp.
   const playIncomingSound = useCallback(() => {
     const ctx = getAudioContext();
     
@@ -220,7 +225,7 @@ export const useSoundEffects = () => {
     }
   }, [getAudioContext]);
 
-  // Game start fanfare
+  // Fanfare bắt đầu game — đánh hợp âm C trưởng (C-E-G-C cao).
   const playStartSound = useCallback(() => {
     const ctx = getAudioContext();
     const notes = [262, 330, 392, 523]; // C E G C
@@ -244,10 +249,10 @@ export const useSoundEffects = () => {
     });
   }, [getAudioContext]);
 
-  // Sad trombone for game over
+  // Giai điệu "kèn buồn" khi game over (G - Gb - F - C đi xuống).
   const playGameOverSound = useCallback(() => {
     const ctx = getAudioContext();
-    const notes = [392, 370, 349, 262]; // G Gb F C (sad trombone)
+    const notes = [392, 370, 349, 262]; // G Gb F C
     
     notes.forEach((freq, i) => {
       const osc = ctx.createOscillator();
@@ -269,7 +274,7 @@ export const useSoundEffects = () => {
     });
   }, [getAudioContext]);
 
-  // Victory fanfare
+  // Fanfare chiến thắng — chuỗi 6 nốt đi lên rộn ràng (C E G C G C).
   const playVictorySound = useCallback(() => {
     const ctx = getAudioContext();
     const notes = [523, 659, 784, 1047, 784, 1047]; // C E G C G C
@@ -293,6 +298,7 @@ export const useSoundEffects = () => {
     });
   }, [getAudioContext]);
 
+  // Export toàn bộ hàm phát âm thanh để các component khác dùng.
   return {
     playMoveSound,
     playCollisionSound,
