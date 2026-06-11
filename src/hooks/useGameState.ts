@@ -1,26 +1,43 @@
+// ============================================================================
+// useGameState.ts — TRÁI TIM của game.
+//
+// Hook tập trung quản lý TOÀN BỘ trạng thái game: màn hình hiện tại, tàu
+// được chọn, vị trí player, danh sách vật cản, điểm số, mạng sống, bão
+// Terra, hệ thống chống "camp" (núp 1 góc), buff overdrive, ending...
+//
+// Cách tính điểm ĐẶC BIỆT: bắt đầu ở 25000, mỗi giây trừ dần — score thấp
+// hơn = chơi xa hơn. Người chơi "thắng" khi score giảm về 0.
+//
+// Cấu trúc file:
+//   1) Hằng số cấu hình (DEBUG, invincibility, zones, ships, storm...)
+//   2) Hàm khởi tạo + state chính
+//   3) Các callback gameplay (move, spawn, collision, trigger ending)
+//   4) Game loop chính trong useEffect (chạy mỗi frame ~60fps)
+//   5) Hàm điều hướng màn hình (menu / ship-select / restart)
+// ============================================================================
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, ShipType, Obstacle, GameScreen, Ship, SuddenEntity, TerraStorm } from '@/types/game';
-import { 
-  LANES, 
-  checkEntityCollision as checkCollisionSystem, 
+import {
+  LANES,
+  checkEntityCollision as checkCollisionSystem,
   EntityType,
   getColliderSize,
   getDebugInfo,
   COLLISION_CONFIG,
 } from '@/lib/collision';
 
-// Debug flag - temporarily enabled to show hitboxes
+// Cờ debug — bật để hiển thị overlay hitbox (hộp va chạm) cho dev kiểm tra.
 const DEBUG_MODE = true;
 
-// Invincibility time after getting hit (in ms)
+// Thời gian bất tử sau khi bị trúng đòn (ms) — tránh bị "combo" nhiều hit liên tiếp.
 const INVINCIBILITY_DURATION = 1500;
 
-// Anti-camping system constants
-const CAMPING_THRESHOLD_MS = 3000; // Time in same zone to trigger anti-camp
-const CORNER_ZONE_SIZE = 25; // Percentage of screen considered "corner zone"
-const EDGE_ZONE_SIZE = 15; // Percentage of screen considered "edge zone"
+// --- Hệ thống chống CAMP (núp 1 chỗ để né cheese) ---
+const CAMPING_THRESHOLD_MS = 3000; // Đứng yên 1 vùng quá 3s sẽ bị "trừng phạt"
+const CORNER_ZONE_SIZE = 25; // % màn hình tính là vùng "góc"
+const EDGE_ZONE_SIZE = 15;   // % màn hình tính là vùng "rìa"
 
-// Corner/Edge zone definitions (percentages)
+// Tọa độ các vùng góc / rìa (theo % khung game) — dùng để phát hiện camp.
 const ZONES = {
   topLeft: { xMin: 0, xMax: 30, yMin: 0, yMax: 35 },
   topRight: { xMin: 70, xMax: 100, yMin: 0, yMax: 35 },
@@ -30,9 +47,11 @@ const ZONES = {
   rightEdge: { xMin: 100 - EDGE_ZONE_SIZE, xMax: 100, yMin: 0, yMax: 100 },
 };
 
-// Extended lanes including edge positions for corner coverage
+// Các "lane" mở rộng có thêm 2 lane ngoài rìa (10, 90) để spawn vật cản
+// đuổi theo người chơi khi họ trốn vào góc.
 const EXTENDED_LANES = [10, 17, 32, 50, 68, 83, 90] as const;
 
+// Cấu hình 2 loại tàu cố định trong game.
 const SHIPS: Record<ShipType, Ship> = {
   speeder: {
     id: 'speeder',
@@ -54,25 +73,30 @@ const SHIPS: Record<ShipType, Ship> = {
   },
 };
 
+// Score khởi đầu — đếm NGƯỢC về 0 trong khi chơi.
 const INITIAL_SCORE = 25000;
 
-// Best score = lowest remaining distance (traveled the farthest)
+// Best score = số NHỎ NHẤT từng đạt (vì càng nhỏ = càng đi xa).
 const getBestScore = (): number => {
   const saved = localStorage.getItem('2500km-bestscore');
-  // If no saved score, return initial score (worst possible)
+  // Chưa có save thì mặc định = INITIAL_SCORE (tệ nhất).
   return saved ? parseInt(saved, 10) : INITIAL_SCORE;
 };
 
+// Lưu best score xuống localStorage để giữ qua các phiên chơi.
 const saveBestScore = (score: number): void => {
   localStorage.setItem('2500km-bestscore', score.toString());
 };
 
+// Trạng thái khởi đầu của sự kiện bão Terra (tắt, intensity = 0).
 const INITIAL_TERRA_STORM: TerraStorm = {
   active: false,
   startTime: 0,
   duration: 5000,
   intensity: 0,
 };
+
+
 
 export const useGameState = () => {
   const [screen, setScreen] = useState<GameScreen>('menu');
