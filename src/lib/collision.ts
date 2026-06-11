@@ -28,18 +28,19 @@ export const GAME_AREA = {
   height: 600, // Reference height in pixels
 };
 
-// Entity type definitions
+// Danh sách các loại entity có trong game — dùng làm key cho mọi bảng tra cứu.
 export type EntityType = 'speeder' | 'tank' | 'asteroid' | 'debris' | 'mine' | 'ufo';
 
 /**
- * Transform - The SINGLE SOURCE OF TRUTH for entity positioning
- * Both rendering and collision use this same data structure
+ * Transform — NGUỒN DUY NHẤT định vị entity trong khung game.
+ * Cả phần render (vẽ) và phần check va chạm đều đọc từ cấu trúc này
+ * → đảm bảo vị trí thấy trên màn hình = vị trí dùng để tính chạm.
  */
 export interface Transform {
-  x: number;      // Center X position (0-100%)
-  y: number;      // Center Y position (0-100%)
-  width: number;  // Width in percentage of game area
-  height: number; // Height in percentage of game area
+  x: number;      // Tọa độ X tâm (0-100%)
+  y: number;      // Tọa độ Y tâm (0-100%)
+  width: number;  // Chiều rộng theo % khung game
+  height: number; // Chiều cao theo % khung game
 }
 
 /**
