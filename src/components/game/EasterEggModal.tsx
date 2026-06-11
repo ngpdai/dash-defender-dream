@@ -100,11 +100,17 @@ export interface SecretCodeModalProps {
   onCorrectCode: () => void;
 }
 
+// Mã bí mật cần nhập — so sánh lowercase nên user có thể gõ "ManlyBadassHero",
+// "MANLYBADASSHERO", "manlybadasshero"... đều được chấp nhận.
 const SECRET_CODE = 'manlybadasshero';
 
+// Modal nhập mã bí mật — mở từ MenuScreen khi đã mở hết 3 ending.
+// Nhập đúng → gọi onCorrectCode() để unlock nút bí mật trong gallery.
 export const SecretCodeModal = ({ open, onClose, onCorrectCode }: SecretCodeModalProps) => {
   const [value, setValue] = useState('');
 
+  // Khi submit: chuẩn hóa input (trim + lowercase) rồi so với SECRET_CODE.
+  // Dù đúng hay sai đều reset input và đóng modal sau đó.
   const handleSubmit = () => {
     const trimmed = value.trim().toLowerCase();
     if (trimmed === SECRET_CODE) {
@@ -113,6 +119,7 @@ export const SecretCodeModal = ({ open, onClose, onCorrectCode }: SecretCodeModa
     setValue('');
     onClose();
   };
+
 
   return (
     <AnimatePresence>
