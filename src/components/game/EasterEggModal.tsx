@@ -1,20 +1,30 @@
+// ============================================================================
+// EasterEggModal.tsx — Hai modal "trứng phục sinh" của game.
+// 1) EasterEggModal (default export): nút "?" ở màn Game Over — hỏi ngẫu nhiên
+//    1 câu, nhập đúng "dai" hoặc "tokudai" → mở khóa secret ending.
+// 2) SecretCodeModal (named export): mở khi click HIGH SCORE ở menu sau khi
+//    đã mở đủ 3 ending — nhập đúng "ManlyBadassHero" → unlock nút bí mật
+//    trong gallery (so sánh không phân biệt hoa thường).
+// ============================================================================
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HelpCircle, X } from 'lucide-react';
 
+// Danh sách câu hỏi ngẫu nhiên cho modal "?" (chỉ là gây nhiễu để giấu đáp án).
 const QUESTIONS = [
   "INPUT A NUMBER",
   "INPUT SOMETHING",
   "INPUT YOUR NAME",
 ];
 
+// Các đáp án hợp lệ cho easter egg ở Game Over (so sánh chữ thường).
 const VALID_ANSWERS = ['dai', 'tokudai'];
 
 interface EasterEggModalProps {
   onSecretUnlocked: () => void;
 }
 
-/** Original easter egg modal (? button on game-over screen) */
+/** Modal easter egg gốc — nút "?" ở màn Game Over. */
 const EasterEggModal = ({ onSecretUnlocked }: EasterEggModalProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [question, setQuestion] = useState('');
