@@ -1,3 +1,9 @@
+// ============================================================================
+// StarField.tsx — Lớp NỀN ngôi sao động vẽ bằng <canvas>.
+// Tạo hiệu ứng 150 ngôi sao nhiều màu (cyan/pink/purple/white) bay từ
+// dưới lên trên với tốc độ ngẫu nhiên, kèm glow → cảm giác bay trong vũ trụ.
+// Chạy độc lập với gameplay, chỉ là background trang trí.
+// ============================================================================
 import { useEffect, useRef } from 'react';
 
 const StarField = () => {
