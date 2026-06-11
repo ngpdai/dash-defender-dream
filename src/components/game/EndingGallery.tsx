@@ -1,3 +1,9 @@
+// ============================================================================
+// EndingGallery.tsx — Bộ sưu tập các ENDING đã mở khóa.
+// Hiển thị icon ổ khóa ở menu (số ending đã mở / tổng). Click vào sẽ
+// mở modal gallery để xem lại các kết thúc đã trải nghiệm: gameover,
+// victory, secret. Nút bí mật thứ 4 chỉ hiện khi nhập đúng mã easter egg.
+// ============================================================================
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Lock, X, Image as ImageIcon, Unlock } from 'lucide-react';
