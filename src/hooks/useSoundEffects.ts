@@ -42,7 +42,8 @@ export const useSoundEffects = () => {
     osc.stop(ctx.currentTime + 0.15);
   }, [getAudioContext]);
 
-  // Goofy "splat" collision sound
+  // Tiếng "splat" khi va chạm vật cản — dùng noise buffer (nhiễu trắng)
+  // qua lowpass filter giảm dần để tạo cảm giác "bụp" trầm.
   const playCollisionSound = useCallback(() => {
     const ctx = getAudioContext();
     
