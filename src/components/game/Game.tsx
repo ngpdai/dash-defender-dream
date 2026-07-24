@@ -9,12 +9,6 @@ import { AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { unlockEnding } from '@/lib/galleryStorage';
-import {
-  notifyGameLoaded,
-  notifyGameplayStart,
-  notifyGameplayStop,
-  requestMidgameAd,
-} from '@/lib/crazygames';
 import StarField from './StarField';
 import MenuScreen from './MenuScreen';
 import ShipSelectScreen from './ShipSelectScreen';
@@ -69,15 +63,11 @@ const Game = () => {
 
   const handleStart = () => {
     playStartSound();
-    // Báo CrazyGames SDK: người chơi bắt đầu 1 ván (bật analytics/ads gameplay).
-    notifyGameplayStart();
     startGame();
   };
 
   const handleRestart = () => {
     playStartSound();
-    // Restart cũng tính là 1 ván chơi mới với SDK.
-    notifyGameplayStart();
     restartGame();
   };
 
@@ -93,18 +83,10 @@ const Game = () => {
     onFlashComplete();
   };
 
-  // Khi component mount lần đầu → báo SDK biết game đã load xong (ẩn loading screen của CrazyGames).
-  useEffect(() => {
-    notifyGameLoaded();
-  }, []);
-
   // Play game over sound and unlock gallery ending when screen changes to game-over or ending-scene
   useEffect(() => {
     if (screen === 'game-over') {
       handleGameOver();
-      // Báo SDK: ván chơi kết thúc + yêu cầu quảng cáo giữa màn.
-      notifyGameplayStop();
-      requestMidgameAd();
       if (secretVictory) {
         unlockEnding('secret');
       } else {
@@ -113,8 +95,6 @@ const Game = () => {
     }
     if (screen === 'ending-scene') {
       playVictorySound();
-      // Ending cinematic cũng coi như dừng gameplay.
-      notifyGameplayStop();
     }
   }, [screen]);
 
