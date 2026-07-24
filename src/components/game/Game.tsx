@@ -9,6 +9,12 @@ import { AnimatePresence } from 'framer-motion';
 import { useGameState } from '@/hooks/useGameState';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { unlockEnding } from '@/lib/galleryStorage';
+import {
+  notifyGameLoaded,
+  notifyGameplayStart,
+  notifyGameplayStop,
+  requestMidgameAd,
+} from '@/lib/crazygames';
 import StarField from './StarField';
 import MenuScreen from './MenuScreen';
 import ShipSelectScreen from './ShipSelectScreen';
